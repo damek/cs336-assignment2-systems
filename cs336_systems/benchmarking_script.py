@@ -36,8 +36,11 @@ model = models.BasicsTransformerLM(
 # Generate random data
 # Int[Tensor, " ... sequence_length"]
 batch_size = 4
-random_input = torch.randint(low = 0, high = args.vocab_size, size = (batch_size, args.context_length))
-random_target = torch.randint(low = 0, high = args.vocab_size, size = (batch_size, args.context_length))
+device = "cpu"
+if torch.cuda.is_available():
+    device = "cuda"
+random_input = torch.randint(low = 0, high = args.vocab_size, size = (batch_size, args.context_length), device=device)
+random_target = torch.randint(low = 0, high = args.vocab_size, size = (batch_size, args.context_length), device=device)
 
 def loss_fn():
     return nn_utils.cross_entropy( model(random_input), random_target )
@@ -50,6 +53,8 @@ for i in range(args.num_warmup):
     model.zero_grad()
     loss = loss_fn()
     loss.backward()
+    if device == "cuda":
+        torch.cuda.synchronize()
     end_time = timeit.default_timer()
     avg_time_warmup += end_time - start_time
 
@@ -68,6 +73,8 @@ for i in range(args.num_benchmark):
         loss = loss_fn()
         loss.backward()
     end_time = timeit.default_timer()
+    if device == "cuda":
+        torch.cuda.synchronize()
     avg_time_benchmark += end_time - start_time
 
 print("Avg time of benchmark", avg_time_benchmark/args.num_benchmark)
