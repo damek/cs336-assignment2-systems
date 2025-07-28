@@ -33,6 +33,7 @@ model = models.BasicsTransformerLM(
         args.rope_theta
         )
 
+
 # Generate random data
 # Int[Tensor, " ... sequence_length"]
 batch_size = 4
@@ -41,6 +42,7 @@ if torch.cuda.is_available():
     device = "cuda"
 random_input = torch.randint(low = 0, high = args.vocab_size, size = (batch_size, args.context_length), device=device)
 random_target = torch.randint(low = 0, high = args.vocab_size, size = (batch_size, args.context_length), device=device)
+model.to(device)
 
 def loss_fn():
     return nn_utils.cross_entropy( model(random_input), random_target )
