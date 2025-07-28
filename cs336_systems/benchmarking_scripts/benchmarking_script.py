@@ -109,5 +109,4 @@ if args.output_csv:
             w.writeheader()
         w.writerow(row)
 
-# Exit 0 so the caller keeps looping
 sys.exit(0)
