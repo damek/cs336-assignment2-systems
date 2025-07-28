@@ -59,6 +59,7 @@ def run_section(fn, num_iter):
         return timings, False          
     except (torch.cuda.OutOfMemoryError, RuntimeError) as e:
         if "out of memory" in str(e).lower():
+            print("Out of memory")
             if device == "cuda":
                 torch.cuda.empty_cache()
             return timings, True       
