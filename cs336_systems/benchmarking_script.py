@@ -62,8 +62,7 @@ for i in range(args.num_warmup):
 
 print("Avg time of warmup forward + backward", avg_time_warmup/args.num_warmup)
 
-avg_time_benchmark = 0
-
+forward_pass_timings = torch.zeros(args.num_benchmark)
 for i in range(args.num_benchmark):
     print(f"Iteration {i}/{args.num_benchmark}")
     start_time = timeit.default_timer()
@@ -77,6 +76,6 @@ for i in range(args.num_benchmark):
     end_time = timeit.default_timer()
     if device == "cuda":
         torch.cuda.synchronize()
-    avg_time_benchmark += end_time - start_time
+    forward_pass_timings[i] += end_time - start_time
 
-print("Avg time of benchmark", avg_time_benchmark/args.num_benchmark)
+print("Avg time of benchmark", forward_pass_timings.mean(), "Std time of benchmark", forward_pass_timings.std())
