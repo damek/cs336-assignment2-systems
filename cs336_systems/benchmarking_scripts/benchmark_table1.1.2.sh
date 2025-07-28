@@ -32,7 +32,7 @@ for i in "${!sizes[@]}"; do
         nwu="${w##*:}"            
         echo "--- ctx=${ctx}  forward=${fwd_only}  warmup=${label}"
 
-        python ../benchmarking_script.py \
+        python benchmarking_script.py \
             --num_layers  "${layers[$i]}"  \
             --num_heads   "${heads[$i]}"   \
             --d_model     "${d_models[$i]}"\
