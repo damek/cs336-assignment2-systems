@@ -1,4 +1,4 @@
-import argparse
+import argparse, csv, datetime as _dt, os, sys, torch, timeit
 import cs336_basics.model as models
 import cs336_basics.nn_utils as nn_utils
 import torch 
@@ -45,61 +45,68 @@ random_input = torch.randint(low = 0, high = args.vocab_size, size = (batch_size
 random_target = torch.randint(low = 0, high = args.vocab_size, size = (batch_size, args.context_length), device=device)
 model.to(device)
 
+
+def run_section(fn, num_iter):
+    timings = torch.zeros(num_iter)
+    try:
+        for i in range(num_iter):
+            print(f"Running iteration {i+1} of {num_iter}")
+            start = timeit.default_timer()
+            fn()
+            if device == "cuda":
+                torch.cuda.synchronize()
+            timings[i] = timeit.default_timer() - start
+        return timings, False          
+    except (torch.cuda.OutOfMemoryError, RuntimeError) as e:
+        if "out of memory" in str(e).lower():
+            if device == "cuda":
+                torch.cuda.empty_cache()
+            return timings, True       
+        raise                           
+
 def loss_fn():
     return nn_utils.cross_entropy( model(random_input), random_target )
-# Do warmup steps.
-avg_time_warmup = 0
-print("Starting Warmup")
-for i in range(args.num_warmup):
-    print(f"Iteration {i}/{args.num_warmup}")
-    start_time = timeit.default_timer()
-    model.zero_grad()
-    loss = loss_fn()
-    loss.backward()
-    if device == "cuda":
-        torch.cuda.synchronize()
-    end_time = timeit.default_timer()
-    avg_time_warmup += end_time - start_time
 
-if args.num_warmup > 0:
-    print("Avg time of warmup forward + backward", avg_time_warmup/args.num_warmup)
-
-forward_pass_timings = torch.zeros(args.num_benchmark)
-for i in range(args.num_benchmark):
-    print(f"Iteration {i}/{args.num_benchmark}")
-    start_time = timeit.default_timer()
-    if args.only_forward: 
-        with torch.no_grad(): 
-            loss = loss_fn()
+def forward_pass():
+    if args.only_forward:
+        with torch.no_grad():
+            loss_fn()
     else:
         model.zero_grad()
         loss = loss_fn()
         loss.backward()
-    end_time = timeit.default_timer()
-    if device == "cuda":
-        torch.cuda.synchronize()
-    forward_pass_timings[i] += end_time - start_time
 
-print("Avg time of benchmark", forward_pass_timings.mean(), "Std time of benchmark", forward_pass_timings.std())
+# warm-up
+print("Running warm-up...")
+_, warmup_oom = run_section(forward_pass, args.num_warmup)
 
-if args.output_csv is not None:
-    import csv, os, datetime as _dt
-    row = {
-        "timestamp": _dt.datetime.now().isoformat(timespec="seconds"),
-        "num_layers": args.num_layers,
-        "num_heads": args.num_heads,
-        "d_model": args.d_model,
-        "d_ff": args.d_ff,
-        "context": args.context_length,
-        "batch": args.batch_size,
-        "only_forward": args.only_forward,
-        "mean_s": float(forward_pass_timings.mean()),
-        "std_s":  float(forward_pass_timings.std()),
-    }
-    header = list(row.keys())
-    write_hdr = not os.path.exists(args.output_csv)
+# benchmark
+print("Running benchmark...")
+bench_times, bench_oom = run_section(forward_pass, args.num_benchmark)
+
+oom = warmup_oom or bench_oom
+row = {
+    "timestamp": _dt.datetime.now().isoformat(timespec="seconds"),
+    "num_layers": args.num_layers,
+    "num_heads":  args.num_heads,
+    "d_model":    args.d_model,
+    "d_ff":       args.d_ff,
+    "context":    args.context_length,
+    "batch":      args.batch_size,
+    "only_forward": args.only_forward,
+    "mean_s": None if oom else float(bench_times.mean()),
+    "std_s":  None if oom else float(bench_times.std()),
+    "oom": oom,
+}
+
+if args.output_csv:
+    hdr = list(row.keys())
+    need_header = not os.path.exists(args.output_csv)
     with open(args.output_csv, "a", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=header)
-        if write_hdr:
+        w = csv.DictWriter(f, fieldnames=hdr)
+        if need_header:
             w.writeheader()
         w.writerow(row)
+
+# Exit 0 so the caller keeps looping
+sys.exit(0)
