@@ -7,6 +7,7 @@ import timeit
 
 p = argparse.ArgumentParser()
 p.add_argument("--num_layers", type=int, required=True)
+p.add_argument("--output_csv", type=str, default=None, help="If given, append a single CSV row with all timings.")
 p.add_argument("--num_heads", type=int, required=True)
 p.add_argument("--context_length", type=int, required=True)
 p.add_argument("--d_model", type=int, required=True)
@@ -79,3 +80,25 @@ for i in range(args.num_benchmark):
     forward_pass_timings[i] += end_time - start_time
 
 print("Avg time of benchmark", forward_pass_timings.mean(), "Std time of benchmark", forward_pass_timings.std())
+
+if args.output_csv is not None:
+    import csv, os, datetime as _dt
+    row = {
+        "timestamp": _dt.datetime.now().isoformat(timespec="seconds"),
+        "num_layers": args.num_layers,
+        "num_heads": args.num_heads,
+        "d_model": args.d_model,
+        "d_ff": args.d_ff,
+        "context": args.context_length,
+        "batch": args.batch_size,
+        "only_forward": args.only_forward,
+        "mean_s": float(forward_pass_timings.mean()),
+        "std_s":  float(forward_pass_timings.std()),
+    }
+    header = list(row.keys())
+    write_hdr = not os.path.exists(args.output_csv)
+    with open(args.output_csv, "a", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=header)
+        if write_hdr:
+            w.writeheader()
+        w.writerow(row)
