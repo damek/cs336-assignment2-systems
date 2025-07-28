@@ -61,7 +61,8 @@ for i in range(args.num_warmup):
     end_time = timeit.default_timer()
     avg_time_warmup += end_time - start_time
 
-print("Avg time of warmup forward + backward", avg_time_warmup/args.num_warmup)
+if args.warmup > 0:
+    print("Avg time of warmup forward + backward", avg_time_warmup/args.num_warmup)
 
 forward_pass_timings = torch.zeros(args.num_benchmark)
 for i in range(args.num_benchmark):
