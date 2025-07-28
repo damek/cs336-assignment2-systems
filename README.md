@@ -1,3 +1,18 @@
+# Getting started with my code
+
+## Runai 
+Setting up the environment
+```python
+runai submit cs336-dev \ -p <user> \  -i nvcr.io/nvidia/pytorch:25.06-py3 \  -g 1 --interactive --attach \  --command -- bash
+git clone https://github.com/damek/cs336-assignment2-systems.git
+pip install uv
+cd cs336-assignment2-systems
+export PATH="$HOME/.local/bin:$PATH"
+uv sync
+```
+
+
+
 # CS336 Spring 2025 Assignment 2: Systems
 
 For a full description of the assignment, see the assignment handout at
