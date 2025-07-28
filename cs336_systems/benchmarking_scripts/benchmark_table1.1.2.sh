@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-OUT_CSV="csv/table1.1.2.csv"
+OUT_CSV="../outputs/csv/$(date +%F)_table1.1.2.csv"
+mkdir -p "$(dirname "$OUT_CSV")"
 
 sizes=(small medium large xl "2.7B")
 d_models=(768 1024 1280 1600 2560)
@@ -12,7 +13,6 @@ heads=(12 16 20 25 32)
 contexts=(128 256 512 1024)
 
 warmups=( "on:5" "off:0" )
-# ---------------------------------
 
 COMMON_STATIC="--vocab_size 10000 --rope_theta 10000 --batch_size 4 \
                --num_benchmark 10 --output_csv ${OUT_CSV}"
