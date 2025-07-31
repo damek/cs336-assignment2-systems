@@ -16,7 +16,7 @@ from jaxtyping import Float, Bool, Int
 
 from .nn_utils import softmax
 
-
+from .utils import maybe_range
 
 
 logger = logging.getLogger(__name__)

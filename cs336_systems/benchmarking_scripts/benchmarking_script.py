@@ -1,7 +1,7 @@
 import argparse, csv, datetime as _dt, os, sys, torch, timeit
 import cs336_basics.model as models
 import cs336_basics.nn_utils as nn_utils
-from cs336_basics.model import maybe_range
+from cs336_basics.utils import maybe_range
 import torch 
 import timeit
 
@@ -91,8 +91,9 @@ with maybe_range("warmup", args.nvtx):
     _, warmup_oom = run_section(forward_pass, args.num_warmup)
 
 # benchmark
-print("Running benchmark...")
-bench_times, bench_oom = run_section(forward_pass, args.num_benchmark)
+with maybe_range("benchmark_step", args.nvtx):
+    print("Running benchmark...")
+    bench_times, bench_oom = run_section(forward_pass, args.num_benchmark)
 
 oom = warmup_oom or bench_oom
 row = {
