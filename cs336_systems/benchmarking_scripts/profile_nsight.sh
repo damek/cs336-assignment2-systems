@@ -12,8 +12,7 @@ heads=(12 16 20 25 32)
 
 contexts=(128 256 512 1024)
 
-COMMON_STATIC="--vocab_size 10000 --rope_theta 10000 --batch_size 4 \
-               --num_benchmark 10 "
+COMMON_STATIC="--vocab_size 10000 --rope_theta 10000 --batch_size 4"
 
 for i in "${!sizes[@]}"; do
   SIZE=${sizes[$i]}

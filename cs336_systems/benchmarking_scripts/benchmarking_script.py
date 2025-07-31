@@ -37,7 +37,7 @@ model = models.BasicsTransformerLM(
         rope_theta = args.rope_theta,
         nvtx = args.nvtx,
         )
-
+optimizer = optimizer(model.parameters())
 
 # Generate random data
 # Int[Tensor, " ... sequence_length"]
@@ -86,13 +86,13 @@ def forward_pass():
         with maybe_range("backward", args.nvtx):
             loss.backward()
 
-# warm-up
-
-args.num_warmpup = 1 if args.nvtx else args.num_warmup
-args.num_benchmark = 1 if args.nvtx else args.num_benchmark
+# If nvtx we hard code some stuff.
 if args.nvtx:
     args.only_forward = True
+    args.num_warmpup = 1
+    args.num_benchmark = 1
 
+# warm-up
 with maybe_range("warmup", args.nvtx):
     print("Running warm-up...")
     _, warmup_oom = run_section(forward_pass, args.num_warmup)
@@ -106,7 +106,7 @@ if args.nvtx:
     with maybe_range("train_step", args.nvtx):
         bench_times, bench_oom = run_section(forward_pass, args.num_benchmark)
         with maybe_range("optimizer_step", args.nvtx):
-            optimizer = optimizer.AdamW(model.parameters())
+            optimizer.step()
 
 
 oom = warmup_oom or bench_oom
