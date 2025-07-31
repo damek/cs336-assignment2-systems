@@ -16,6 +16,16 @@ from jaxtyping import Float, Bool, Int
 
 from .nn_utils import softmax
 
+from contextlib import nullcontext # going to use this for making a range for profiling.
+
+def maybe_range(tag: str, enabled: bool = False):
+    """
+    Will return an empty context when set to false. 
+    Otherwise, will return an nvtx annotation that we'll use in the nsys.
+    """
+    return torch.cuda.nvtx.range(tag) if enabled else nullcontext()
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -184,6 +194,7 @@ class BasicsTransformerLM(nn.Module):
         num_heads: int,
         d_ff: int,
         rope_theta: float,
+        nvtx: Bool = False
     ):
         # Store the model configuration for serialization / deserialization
         self.config = {
@@ -194,6 +205,7 @@ class BasicsTransformerLM(nn.Module):
         self.context_length = context_length
         self.d_model = d_model
         self.token_embeddings = Embedding(vocab_size, d_model)
+        self.nvtx = nvtx
         d_head = d_model // num_heads
         self.positional_encoder = RotaryEmbedding(
             context_length=context_length,
@@ -207,12 +219,14 @@ class BasicsTransformerLM(nn.Module):
                     num_heads=num_heads,
                     d_ff=d_ff,
                     positional_encoder=self.positional_encoder,
+                    nvtx = nvtx,
                 )
                 for _ in range(num_layers)
             ]
         )
         self.ln_final = RMSNorm(d_model)
         self.lm_head = Linear(d_model, vocab_size)
+        self.nvtx = nvtx
 
         # report number of parameters
         logger.info(f"number of non-embedding parameters: {self.get_num_params() / 1e6:.2f}M")
@@ -240,17 +254,21 @@ class BasicsTransformerLM(nn.Module):
         _, sequence_length = x.size()
 
         # (batch size, sequence_length, d_model)
-        x = self.token_embeddings(x)
-
-        for layer in self.layers:
+        with maybe_range("embed", self.nvtx):
+            x = self.token_embeddings(x)
+    
+        for idx, layer in enumerate(self.layers):
+            with maybe_range(f"layer{idx}", self.nvtx):
             # (batch size, sequence_length, d_model)
-            x = layer(x)
+                x = layer(x)
 
         # (batch size, sequence_length, d_model)
         x = self.ln_final(x)
 
         # (batch size, sequence_length, vocab_size)
-        return self.lm_head(x)
+        with maybe_range("head", self.nvtx):
+            x = self.lm_head(x)
+        return x
 
     @torch.no_grad()
     def generate(
@@ -354,8 +372,10 @@ class TransformerBlock(nn.Module):
         num_heads: int,
         d_ff: int,
         positional_encoder: RotaryEmbedding,
+        nvtx : Bool = False
     ):
         super().__init__()
+        self.nvtx = nvtx
         self.attn = CausalMultiHeadSelfAttention(
             d_model=d_model,
             num_heads=num_heads,
@@ -377,12 +397,15 @@ class TransformerBlock(nn.Module):
         # NOTE: this is a pre-norm Transformer, and differs from the original
         # description in the paper.
         # Apply the multi-head self-attention sublayer
-        x_attn = self.attn(self.ln1(x))
-        attn_sublayer_output = x + x_attn
+        with maybe_range("attn", self.nvtx):
+            x_attn = self.attn(self.ln1(x))
+            attn_sublayer_output = x + x_attn
 
         # Apply the feed-forward sublayer
-        x_ffn = self.ffn(self.ln2(attn_sublayer_output))
-        ffn_sublayer_output = attn_sublayer_output + x_ffn
+        with maybe_range("mlp", self.nvtx):
+            x_ffn = self.ffn(self.ln2(attn_sublayer_output))
+            ffn_sublayer_output = attn_sublayer_output + x_ffn
+            
         return ffn_sublayer_output
 
 
