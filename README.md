@@ -1,3 +1,9 @@
+# Following along
+
+Currently writing a twitter thread here: 
+
+https://x.com/damekdavis/status/1949507725626347825
+
 # Getting started with my code
 
 ## Runai 
