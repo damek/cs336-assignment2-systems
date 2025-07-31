@@ -1,6 +1,7 @@
 import argparse, csv, datetime as _dt, os, sys, torch, timeit
 import cs336_basics.model as models
 import cs336_basics.nn_utils as nn_utils
+import cs336_basics.optimizer as optimizer
 from cs336_basics.utils import maybe_range
 import torch 
 import timeit
@@ -20,7 +21,6 @@ p.add_argument("--num_benchmark", type=int, default=10)
 p.add_argument("--only_forward", action='store_true')
 p.add_argument("--batch_size", type=int, default=4)
 p.add_argument("--nvtx", action='store_true')
-p.add_argument("--profile", action='store_true')
 
 
 
@@ -70,7 +70,11 @@ def run_section(fn, num_iter):
         raise                           
 
 def loss_fn():
-    return nn_utils.cross_entropy( model(random_input), random_target )
+    with maybe_range("model_eval", args.nvtx):
+        logits = model(random_input)
+    with maybe_range("loss", args.nvtx):
+        loss = nn_utils.cross_entropy(logits)
+    return loss
 
 def forward_pass():
     if args.only_forward:
@@ -79,21 +83,31 @@ def forward_pass():
     else:
         model.zero_grad()
         loss = loss_fn()
-        loss.backward()
+        with maybe_range("backward", args.nvtx):
+            loss.backward()
 
 # warm-up
 
-warmup_steps = 1 if args.profile else args.num_warmup
-measure_steps = 1 if args.profile else args.num_benchmark
+warmup_steps = 1 if args.nvtx else args.num_warmup
+measure_steps = 1 if args.nvtx else args.num_benchmark
+if args.nvtx:
+    args.only_forward = True
 
 with maybe_range("warmup", args.nvtx):
     print("Running warm-up...")
     _, warmup_oom = run_section(forward_pass, args.num_warmup)
 
 # benchmark
-with maybe_range("benchmark_step", args.nvtx):
-    print("Running benchmark...")
+with maybe_range("forward_pass", args.nvtx):
+    print("Running forward pass...")
     bench_times, bench_oom = run_section(forward_pass, args.num_benchmark)
+
+if args.nvtx:
+    with maybe_range("train_step", args.nvtx):
+        bench_times, bench_oom = run_section(forward_pass, args.num_benchmark)
+        with maybe_range("optimizer_step", args.nvtx):
+            optimizer = optimizer.AdamW(model.parameters())
+
 
 oom = warmup_oom or bench_oom
 row = {
