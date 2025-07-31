@@ -20,7 +20,7 @@ p.add_argument("--num_benchmark", type=int, default=10)
 p.add_argument("--only_forward", action='store_true')
 p.add_argument("--batch_size", type=int, default=4)
 p.add_argument("--nvtx", action='store_true')
-p.add_argument("--profile", type='store_true')
+p.add_argument("--profile", action='store_true')
 
 
 
