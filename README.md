@@ -43,6 +43,9 @@ mkdir -p ~/nsys_traces          # e.g., here is where i'll store the nsys_traces
 
 # Now copy files from within the pod 
 kubectl cp -n $NS  $POD:/workspace/cs336-assignment2-systems/cs336_systems/ouputs/nsys/nsys.tgz ~/nsys_traces/nsys.tgz
+
+# Now you can copy and paste the file from the VS code gui (in my case). 
+# Otherwise you can just use scp.
 ```
 
 
