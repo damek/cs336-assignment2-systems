@@ -6,6 +6,12 @@ https://x.com/damekdavis/status/1949507725626347825
 
 # Getting started with my code
 
+## Running the first benchmarking script: 
+
+```python
+uv run benchmarking_script.py --num_layers 12 --num_heads 12 --d_ff 3072 --d_model 76008 --context_length 1024 --rope_theta 10000 --vocab_size 10000 --output_csv "times.csv" --num_warmup 1 --num_benchmark 2
+```
+
 ## Runai 
 ### Setting up the environment
 Setting up the environment
@@ -19,11 +25,26 @@ uv sync
 uv venv
 source .venv/bin/activate
 ```
-## Running the first benchmarking script: 
 
+### Getting files out of the pod
+
+If you've remote logged into the kubernetes server
 ```python
-uv run benchmarking_script.py --num_layers 12 --num_heads 12 --d_ff 3072 --d_model 76008 --context_length 1024 --rope_theta 10000 --vocab_size 10000 --output_csv "times.csv" --num_warmup 1 --num_benchmark 2
+# From within the pod, get the podname and the name space
+echo "POD name    : $HOSTNAME"
+cat /var/run/secrets/kubernetes.io/serviceaccount/namespace
+
+# Outside the pod, set the pod and namespace variables 
+POD=cs336-dev-0-0 # for example
+NS=runai-?? # leaving this for myself to fill in.
+
+# Outside the pod create a place to store things from the pod
+mkdir -p ~/nsys_traces          # e.g., here is where i'll store the nsys_traces
+
+# Now copy files from within the pod 
+kubectl cp -n $NS  $POD:/workspace/cs336-assignment2-systems/cs336_systems/ouputs/nsys/nsys.tgz ~/nsys_traces/nsys.tgz
 ```
+
 
 # CS336 Spring 2025 Assignment 2: Systems
 
