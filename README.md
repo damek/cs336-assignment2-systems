@@ -1,6 +1,7 @@
 # Getting started with my code
 
 ## Runai 
+### Setting up the environment
 Setting up the environment
 ```python
 runai submit cs336-dev \ -p <user> \  -i nvcr.io/nvidia/pytorch:25.06-py3 \  -g 1 --interactive --attach \  --command -- bash
@@ -12,8 +13,11 @@ uv sync
 uv venv
 source .venv/bin/activate
 ```
+## Running the first benchmarking script: 
 
-
+```python
+uv run benchmarking_script.py --num_layers 12 --num_heads 12 --d_ff 3072 --d_model 76008 --context_length 1024 --rope_theta 10000 --vocab_size 10000 --output_csv "times.csv" --num_warmup 1 --num_benchmark 2
+```
 
 # CS336 Spring 2025 Assignment 2: Systems
 
