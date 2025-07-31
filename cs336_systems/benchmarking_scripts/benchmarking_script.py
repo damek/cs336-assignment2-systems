@@ -88,8 +88,8 @@ def forward_pass():
 
 # warm-up
 
-warmup_steps = 1 if args.nvtx else args.num_warmup
-measure_steps = 1 if args.nvtx else args.num_benchmark
+args.num_warmpup = 1 if args.nvtx else args.num_warmup
+args.num_benchmark = 1 if args.nvtx else args.num_benchmark
 if args.nvtx:
     args.only_forward = True
 
