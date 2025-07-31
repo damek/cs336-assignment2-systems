@@ -16,14 +16,7 @@ from jaxtyping import Float, Bool, Int
 
 from .nn_utils import softmax
 
-from contextlib import nullcontext # going to use this for making a range for profiling.
 
-def maybe_range(tag: str, enabled: bool = False):
-    """
-    Will return an empty context when set to false. 
-    Otherwise, will return an nvtx annotation that we'll use in the nsys.
-    """
-    return torch.cuda.nvtx.range(tag) if enabled else nullcontext()
 
 
 logger = logging.getLogger(__name__)

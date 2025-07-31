@@ -1,6 +1,7 @@
 import argparse, csv, datetime as _dt, os, sys, torch, timeit
 import cs336_basics.model as models
 import cs336_basics.nn_utils as nn_utils
+from cs336_basics.model import maybe_range
 import torch 
 import timeit
 
@@ -18,6 +19,8 @@ p.add_argument("--num_warmup", type=int, default=5)
 p.add_argument("--num_benchmark", type=int, default=10)
 p.add_argument("--only_forward", action='store_true')
 p.add_argument("--batch_size", type=int, default=4)
+p.add_argument("--nvtx", action='store_true')
+p.add_argument("--profile", type='store_true')
 
 
 
@@ -25,13 +28,14 @@ args = p.parse_args()
 
 # Initialize the model
 model = models.BasicsTransformerLM(
-        args.vocab_size,
-        args.context_length,
-        args.d_model,
-        args.num_layers,
-        args.num_heads,
-        args.d_ff,
-        args.rope_theta
+        vocab_size = args.vocab_size,
+        context_length = args.context_length,
+        d_model = args.d_model,
+        num_layers = args.num_layers,
+        num_heads = args.num_heads,
+        d_ff = args.d_ff,
+        rope_theta = args.rope_theta,
+        nvtx = args.nvtx,
         )
 
 
@@ -78,8 +82,13 @@ def forward_pass():
         loss.backward()
 
 # warm-up
-print("Running warm-up...")
-_, warmup_oom = run_section(forward_pass, args.num_warmup)
+
+warmup_steps = 1 if args.profile else args.num_warmup
+measure_steps = 1 if args.profile else args.num_benchmark
+
+with maybe_range("warmup", args.nvtx):
+    print("Running warm-up...")
+    _, warmup_oom = run_section(forward_pass, args.num_warmup)
 
 # benchmark
 print("Running benchmark...")
