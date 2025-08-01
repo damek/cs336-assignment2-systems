@@ -21,7 +21,7 @@ for i in "${!sizes[@]}"; do
   for ctx in "${contexts[@]}"; do
     tag="${sizes[$i]}_ctx${ctx}"
     echo "profiling $tag"
-    nsys profile --capture-range=nvtx --capture-range-end=stop \
+    nsys profile  \
         -o "${OUT_DIR}/${tag}" \
         python benchmarking_script.py \
         --num_layers  "${layers[$i]}"  \
