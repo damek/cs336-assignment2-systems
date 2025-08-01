@@ -89,7 +89,7 @@ def forward_pass():
 # If nvtx we hard code some stuff.
 if args.nvtx:
     args.only_forward = True
-    args.num_warmpup = 1
+    args.num_warmup = 1
     args.num_benchmark = 1
 
 # warm-up

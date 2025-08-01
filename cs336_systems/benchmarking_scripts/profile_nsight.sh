@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-OUT_CSV="../outputs/csv/$(date +%F)_table1.1.2.csv"
-mkdir -p "$(dirname "$OUT_CSV")"
+OUT_DIR="../outputs/nsys"
+mkdir -p "$OUT_DIR"
 
 sizes=(small medium large xl "2.7B")
 d_models=(768 1024 1280 1600 2560)
@@ -12,26 +12,23 @@ heads=(12 16 20 25 32)
 
 contexts=(128 256 512 1024)
 
-COMMON_STATIC="--vocab_size 10000 --rope_theta 10000 --batch_size 4"
+COMMON_STATIC="--vocab_size 10000 --rope_theta 10000 --batch_size 4 --nvtx"
 
 for i in "${!sizes[@]}"; do
   SIZE=${sizes[$i]}
   echo; echo "========== ${SIZE^^} MODEL =========="
 
   for ctx in "${contexts[@]}"; do
-    for fwd_only in "no" "yes"; do
-      [[ "$fwd_only" == "yes" ]] && extra_fwd="--only_forward" || extra_fwd=""
-       
-        echo "--- ctx=${ctx}  forward=${fwd_only} "
+      echo "--- ctx=${ctx}  "
 
-        python benchmarking_script.py \
-            --num_layers  "${layers[$i]}"  \
-            --num_heads   "${heads[$i]}"   \
-            --d_model     "${d_models[$i]}"\
-            --d_ff        "${d_ffs[$i]}"   \
-            --context_length "${ctx}"      \
-            ${extra_fwd}                   \
-            ${COMMON_STATIC}
+      python benchmarking_script.py \
+          --num_layers  "${layers[$i]}"  \
+          --num_heads   "${heads[$i]}"   \
+          --d_model     "${d_models[$i]}"\
+          --d_ff        "${d_ffs[$i]}"   \
+          --context_length "${ctx}"      \
+          ${extra_fwd}                   \
+          ${COMMON_STATIC}
       done
     done
   done
