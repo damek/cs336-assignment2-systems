@@ -267,13 +267,17 @@ class NsightProfileAnalyzer:
                                 if original_name and original_name != '':
                                     break
                         
+                        # Remove leading ':' if present
+                        if original_name.startswith(':'):
+                            original_name = original_name[1:]
+                        
                         name = original_name.lower()
                         time_ms = row[time_col] / 1e6
                         count = row.get(count_col, 1) if count_col else 1
                         
                         # Debug: print NVTX range info
                         if self.debug and idx < 10:
-                            print(f"  NVTX range #{idx}: name='{original_name}' (from Range='{row.get('Range', '')}') time={time_ms:.2f}ms count={count}")
+                            print(f"  NVTX range #{idx}: name='{original_name}' time={time_ms:.2f}ms count={count}")
                     
                         # If names are present, use them
                         if original_name and not original_name.isspace():
@@ -544,9 +548,21 @@ class NsightProfileAnalyzer:
                 
                 if 'backward_ms' in result:
                     row['Backward (ms)'] = f"{result['backward_ms']:.2f}"
+                else:
+                    # Since nvtx mode doesn't run backward, estimate it
+                    if 'forward_pass_ms' in result and 'train_step_ms' in result:
+                        # Train step = forward + optimizer in nvtx mode
+                        # So backward is approximately 0
+                        row['Backward (ms)'] = "0.00*"
                     
                 if 'optimizer_step_ms' in result:
                     row['Optimizer (ms)'] = f"{result['optimizer_step_ms']:.2f}"
+                else:
+                    # Calculate optimizer time as train_step - forward (since no backward in nvtx mode)
+                    if 'forward_pass_ms' in result and 'train_step_ms' in result:
+                        opt_time = result['train_step_ms'] - result['forward_pass_ms']
+                        if opt_time > 0:
+                            row['Optimizer (ms)'] = f"{opt_time:.2f}"
                 
                 # Only add row if we have at least forward pass or train step
                 if row['Forward (ms)'] != 'N/A' or row['Train Step (ms)'] != 'N/A':
