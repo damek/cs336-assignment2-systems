@@ -37,7 +37,7 @@ model = models.BasicsTransformerLM(
         rope_theta = args.rope_theta,
         nvtx = args.nvtx,
         )
-optimizer = optimizer(model.parameters())
+opt = optimizer.AdamW(model.parameters())
 
 # Generate random data
 # Int[Tensor, " ... sequence_length"]
@@ -106,7 +106,7 @@ if args.nvtx:
     with maybe_range("train_step", args.nvtx):
         bench_times, bench_oom = run_section(forward_pass, args.num_benchmark)
         with maybe_range("optimizer_step", args.nvtx):
-            optimizer.step()
+            opt.step()
 
 
 oom = warmup_oom or bench_oom
