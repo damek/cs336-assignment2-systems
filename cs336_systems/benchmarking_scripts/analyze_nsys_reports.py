@@ -263,6 +263,11 @@ def create_nsys_analysis_report():
     # Build the markdown content
     content = []
     content.append("# Nsight Systems Profiling Analysis Report\n\n")
+    content.append("**How to generate this file:**\n")
+    content.append("```bash\n")
+    content.append("cd cs336_systems/benchmarking_scripts\n")
+    content.append("uv run analyze_nsys_reports.py\n")
+    content.append("```\n\n")
     
     # Add kernel glossary
     content.append("## Kernel Type Glossary\n\n")
