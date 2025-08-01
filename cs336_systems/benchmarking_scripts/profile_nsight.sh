@@ -21,8 +21,7 @@ for i in "${!sizes[@]}"; do
   for ctx in "${contexts[@]}"; do
     tag="${sizes[$i]}_ctx${ctx}"
     echo "profiling $tag"
-    nsys profile --pytorch \
-        --python-backtrace=cuda \
+    nsys profile --python-backtrace=cuda \
         -o "${OUT_DIR}/${tag}" \
         uv run benchmarking_script.py \
         --num_layers  "${layers[$i]}"  \
