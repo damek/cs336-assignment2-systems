@@ -52,6 +52,66 @@ def extract_forward_pass_timings():
     # Return the dataframe without saving or printing
     return df
 
+def extract_attention_breakdown():
+    """Extract softmax vs matrix multiply breakdown within attention layers."""
+    
+    # Get all nsys report files
+    nsys_dir = Path("../outputs/nsys")
+    nsys_files = sorted(nsys_dir.glob("*.nsys-rep"))
+    
+    if not nsys_files:
+        print("No .nsys-rep files found")
+        return None
+    
+    attention_data = []
+    
+    for f in nsys_files:
+        # Run nsys stats command for NVTX kernel summary
+        cmd = ["nsys", "stats", "--report", "nvtx_kern_sum", str(f)]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print(f"Error processing {f.name}: {result.stderr}")
+            continue
+        
+        # Parse output
+        lines = result.stdout.splitlines()
+        
+        softmax_time_ns = 0
+        compute_attn_time_ns = 0
+        
+        for line in lines:
+            # Look for softmax within attention
+            if ":softmax" in line and "PushPop" in line:
+                parts = line.split(None, 11)
+                if len(parts) >= 12:
+                    try:
+                        softmax_time_ns += int(parts[6])
+                    except (ValueError, IndexError):
+                        continue
+            
+            # Look for compute attention scores (matrix multiply)
+            elif "Compute attention scores" in line and "PushPop" in line:
+                parts = line.split(None, 11)
+                if len(parts) >= 12:
+                    try:
+                        compute_attn_time_ns += int(parts[6])
+                    except (ValueError, IndexError):
+                        continue
+        
+        if softmax_time_ns > 0 or compute_attn_time_ns > 0:
+            attention_data.append({
+                'file': f.stem,
+                'softmax_ms': softmax_time_ns / 1_000_000,
+                'matmul_ms': compute_attn_time_ns / 1_000_000,
+                'softmax_to_matmul_ratio': softmax_time_ns / compute_attn_time_ns if compute_attn_time_ns > 0 else 0
+            })
+    
+    if not attention_data:
+        return None
+        
+    return pd.DataFrame(attention_data)
+
 def extract_kernel_breakdown_by_nvtx_range(nvtx_range_name):
     """Extract kernel breakdown (matrix multiply vs others) for a specific NVTX range."""
     
@@ -298,9 +358,20 @@ def create_nsys_analysis_report():
         content.append(comparison_df[['file', 'matmul_forward_%', 'matmul_train_%', 'other_forward_%', 'other_train_%']].to_markdown(index=False))
         content.append("\n\n")
     
+    # Question (e)
     content.append("## (e) Compare the runtime of the softmax operation versus the matrix multiplication operations within the self-attention layer of your model during a forward pass. How does the difference in runtimes compare to the difference in FLOPs?\n\n")
     content.append("**Deliverable:** A 1-2 sentence response.\n\n")
-    content.append("**Answer:** [TO BE IMPLEMENTED]\n\n")
+    
+    # Get attention breakdown
+    attention_df = extract_attention_breakdown()
+    if attention_df is not None:
+        content.append("### Softmax vs Matrix Multiplication in Self-Attention\n\n")
+        # Format the ratio as percentage
+        attention_df['runtime_ratio_%'] = (attention_df['softmax_to_matmul_ratio'] * 100).round(1)
+        content.append(attention_df[['file', 'softmax_ms', 'matmul_ms', 'runtime_ratio_%']].to_markdown(index=False))
+        content.append("\n\n")
+        content.append("**Note:** runtime_ratio_% = (softmax_time / matmul_time) * 100\n\n")
+        content.append("**Answer:** [TO BE FILLED: Compare this runtime ratio to the theoretical FLOP ratio]\n\n")
     
     # Join all content and write to file
     full_content = ''.join(content)
