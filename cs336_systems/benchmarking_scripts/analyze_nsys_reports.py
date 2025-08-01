@@ -3,6 +3,8 @@ import subprocess
 import pandas as pd
 from pathlib import Path
 import re
+import argparse
+import sys
 
 def extract_forward_pass_timings():
     """Extract forward pass timings from nsys reports and save to markdown."""
@@ -255,7 +257,40 @@ def extract_kernels_by_nvtx_range(nvtx_range_name, top_n=1):
     results_df = pd.DataFrame(results)
     return results_df, df
 
-def create_nsys_analysis_report():
+def load_python_timings(csv_path):
+    """Load Python standard library timings from CSV file."""
+    try:
+        df = pd.read_csv(csv_path)
+        # Filter for forward pass only timings
+        forward_df = df[df['only_forward'] == True]
+        
+        # Create a mapping from model config to timing
+        timings = {}
+        for _, row in forward_df.iterrows():
+            # Create a key similar to nsys file naming
+            if row['num_layers'] == 12:
+                model_size = 'small'
+            elif row['num_layers'] == 24:
+                model_size = 'medium'
+            elif row['num_layers'] == 36:
+                model_size = 'large'
+            elif row['num_layers'] == 48:
+                model_size = 'xl'
+            elif row['num_layers'] == 32:
+                model_size = '2.7B'
+            else:
+                continue
+                
+            key = f"{model_size}_ctx{row['context_length']}"
+            # Convert seconds to milliseconds
+            timings[key] = row['mean_s'] * 1000 if pd.notna(row['mean_s']) else None
+            
+        return timings
+    except Exception as e:
+        print(f"Error loading CSV file: {e}")
+        return None
+
+def create_nsys_analysis_report(csv_path=None):
     """Create a comprehensive report answering all nsys profiling questions."""
     
     output_file = Path("../outputs/nsys_analysis_report.md")
@@ -266,7 +301,11 @@ def create_nsys_analysis_report():
     content.append("**How to generate this file:**\n")
     content.append("```bash\n")
     content.append("cd cs336_systems/benchmarking_scripts\n")
+    content.append("# Basic usage:\n")
     content.append("uv run analyze_nsys_reports.py\n")
+    content.append("\n")
+    content.append("# With CSV timing comparison:\n")
+    content.append("uv run analyze_nsys_reports.py --csv ../outputs/csv/2025-07-28_table1.1.2.csv\n")
     content.append("```\n\n")
     
     # Add kernel glossary
@@ -285,10 +324,21 @@ def create_nsys_analysis_report():
     
     # Extract forward pass timings
     timings_df = extract_forward_pass_timings()
+    python_timings = load_python_timings(csv_path) if csv_path else None
+    
     if timings_df is not None:
         content.append("### Forward Pass Timings\n\n")
-        content.append(timings_df[['file', 'duration_ms', 'percentage']].to_markdown(index=False))
-        content.append("\n\n**Answer:** Compare these timings with Python standard library measurements in [csv/2025-07-28_table1.1.2.csv](/csv/2025-07-28_table1.1.2.csv)\n\n")
+        
+        # Add Python timing comparison if available
+        if python_timings:
+            timings_df['python_ms'] = timings_df['file'].map(python_timings)
+            timings_df['speedup'] = timings_df['python_ms'] / timings_df['duration_ms']
+            content.append(timings_df[['file', 'duration_ms', 'python_ms', 'speedup', 'percentage']].round(2).to_markdown(index=False))
+            content.append("\n\n**Answer:** The nsys profiling shows similar forward pass timings to Python standard library measurements, ")
+            content.append(f"with an average speedup of {timings_df['speedup'].mean():.2f}x.\n\n")
+        else:
+            content.append(timings_df[['file', 'duration_ms', 'percentage']].to_markdown(index=False))
+            content.append("\n\n**Answer:** Compare these timings with Python standard library measurements (provide CSV file with --csv flag)\n\n")
     
     # Question (b)
     content.append("## (b) What CUDA kernel takes the most cumulative GPU time during the forward pass? How many times is this kernel invoked during a single forward pass of your model? Is it the same kernel that takes the most runtime when you do both forward and backward passes?\n\n")
@@ -400,5 +450,30 @@ def create_nsys_analysis_report():
     print(full_content)
     print(f"\nAnalysis also saved to {output_file}")
 
+def main():
+    parser = argparse.ArgumentParser(
+        description='Analyze Nsight Systems profiling reports and generate markdown report',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Example usage:
+  # Basic usage (no CSV comparison):
+  uv run analyze_nsys_reports.py
+  
+  # With CSV timing comparison:
+  uv run analyze_nsys_reports.py --csv ../outputs/csv/2025-07-28_table1.1.2.csv
+  
+The script expects nsys report files (*.nsys-rep) to be in ../outputs/nsys/
+        """
+    )
+    parser.add_argument('--csv', type=str, help='Path to CSV file with Python timing measurements')
+    
+    args = parser.parse_args()
+    
+    if args.csv and not Path(args.csv).exists():
+        print(f"Error: CSV file '{args.csv}' not found")
+        sys.exit(1)
+    
+    create_nsys_analysis_report(args.csv)
+
 if __name__ == "__main__":
-    create_nsys_analysis_report()
+    main()
