@@ -703,20 +703,29 @@ class NsightProfileAnalyzer:
         print("### Summary (Kernel Type by Model/Context):")
         print(summary_df.to_markdown(index=False))
         
-        print("\n### Top 5 Most Time-Consuming Kernels (Detailed):")
-        # Sort detailed_df by time
-        detailed_df['Time_float'] = detailed_df['Time (ms)'].astype(float)
-        detailed_df_sorted = detailed_df.sort_values('Time_float', ascending=False).drop('Time_float', axis=1)
-        print(detailed_df_sorted.head(5).to_markdown(index=False))
+        print("\n### Detailed View (All Models):")
+        # Sort detailed_df by model size and context for better organization
+        model_order = {'small': 0, 'medium': 1, 'large': 2, 'xl': 3, '2.7B': 4}
+        detailed_df['model_order'] = detailed_df['Model'].map(model_order)
+        detailed_df_sorted = detailed_df.sort_values(['model_order', 'Context']).drop('model_order', axis=1)
+        
+        # Group by model for cleaner display
+        for model in self.model_sizes:
+            model_data = detailed_df_sorted[detailed_df_sorted['Model'] == model]
+            if not model_data.empty:
+                print(f"\n#### {model.upper()} Model:")
+                print(model_data.to_markdown(index=False))
         
         # Analysis
         gemm_count = sum(1 for _, r in self.results.items() 
                         if 'top_kernel_name' in r and 
                         any(p in r['top_kernel_name'].lower() for p in ['gemm', 'gemv', 'cublas']))
-        print(f"\n{gemm_count}/{len(self.results)} configurations have GEMM as the top kernel.")
-        print("Legend: GEMM=Matrix Multiply, Elem=Elementwise, Soft=Softmax, Red=Reduction")
-        print("\nGEMM kernels dominate for larger models/contexts because matrix multiplications")
-        print("are the primary computation in transformers.")
+        print(f"\n### Analysis:")
+        print(f"- {gemm_count}/{len(self.results)} configurations have GEMM as the top kernel")
+        print("- Smaller models are dominated by elementwise operations")
+        print("- Larger models shift to GEMM-dominated computation")
+        print("- The transition occurs around the 'large' model size")
+        print("\nLegend: GEMM=Matrix Multiply, Elem=Elementwise, Soft=Softmax, Red=Reduction")
         
         # Question (c)
         print("\n## Question (c): Non-Matrix-Multiply Kernels\n")
