@@ -172,11 +172,11 @@ class NsightProfileAnalyzer:
             'file': nsys_file.name
         }
         
-        # Try text format first
-        text_ranges = self.get_nvtx_ranges_text(nsys_file)
+        # Try SQLite export for better NVTX name preservation
+        sqlite_ranges = self.get_nvtx_ranges_sqlite(nsys_file)
         
-        # Then try SQLite export for better NVTX name preservation
-        sqlite_ranges = self.get_nvtx_ranges_sqlite(nsys_file) if not text_ranges else None
+        # Text format doesn't work well - it just finds pipe characters
+        text_ranges = None
         
         if sqlite_ranges or text_ranges:
             ranges_to_use = sqlite_ranges if sqlite_ranges else text_ranges
@@ -185,14 +185,22 @@ class NsightProfileAnalyzer:
                 print(f"  Using {source} export - found {len(ranges_to_use)} NVTX ranges with names")
             
             # Process results
-            for range_data in ranges_to_use:
-                name = range_data['name'].lower()
-                time_ms = range_data['total_time_ns'] / 1e6
-                avg_ms = range_data['avg_time_ns'] / 1e6
-                count = range_data['count']
-                
-                if self.debug and sqlite_ranges.index(range_data) < 5:
-                    print(f"  NVTX: '{range_data['name']}' total={time_ms:.2f}ms count={count} avg={avg_ms:.2f}ms")
+            for idx, range_data in enumerate(ranges_to_use):
+                # Handle different data formats from text vs sqlite
+                if 'time_text' in range_data:
+                    # Text format - simplified data
+                    name = range_data.get('name', '').lower()
+                    # Text parser doesn't give us all the info, skip it
+                    continue
+                else:
+                    # SQLite format - full data
+                    name = range_data['name'].lower()
+                    time_ms = range_data['total_time_ns'] / 1e6
+                    avg_ms = range_data['avg_time_ns'] / 1e6
+                    count = range_data['count']
+                    
+                    if self.debug and idx < 5:
+                        print(f"  NVTX: '{range_data['name']}' total={time_ms:.2f}ms count={count} avg={avg_ms:.2f}ms")
                 
                 # Map names to results
                 if 'forward_pass' in name:
