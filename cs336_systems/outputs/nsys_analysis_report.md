@@ -10,6 +10,16 @@ uv run analyze_nsys_reports.py
 uv run analyze_nsys_reports.py --csv ../outputs/csv/2025-07-28_table1.1.2.csv
 ```
 
+## Model Specifications
+
+| Size | d_model | d_ff | num_layers | num_heads |
+|------|---------|------|------------|----------|
+| small | 768 | 3072 | 12 | 12 |
+| medium | 1024 | 4096 | 24 | 16 |
+| large | 1280 | 5120 | 36 | 20 |
+| xl | 1600 | 6400 | 48 | 25 |
+| 2.7B | 2560 | 10240 | 32 | 32 |
+
 ## Kernel Type Glossary
 
 - **cutlass::Kernel2**: Matrix multiplication (GEMM) operations
