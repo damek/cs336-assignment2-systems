@@ -283,7 +283,7 @@ def create_nsys_analysis_report():
     if timings_df is not None:
         content.append("### Forward Pass Timings\n\n")
         content.append(timings_df[['file', 'duration_ms', 'percentage']].to_markdown(index=False))
-        content.append("\n\n**Answer:** [TO BE FILLED: Compare these timings with Python standard library measurements]\n\n")
+        content.append("\n\n**Answer:** Compare these timings with Python standard library measurements in `outputs/csv/2025-07-28_table1.1.2.csv`\n\n")
     
     # Question (b)
     content.append("## (b) What CUDA kernel takes the most cumulative GPU time during the forward pass? How many times is this kernel invoked during a single forward pass of your model? Is it the same kernel that takes the most runtime when you do both forward and backward passes?\n\n")
