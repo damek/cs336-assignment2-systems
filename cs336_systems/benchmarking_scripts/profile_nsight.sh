@@ -19,19 +19,21 @@ for i in "${!sizes[@]}"; do
   echo; echo "========== ${SIZE^^} MODEL =========="
 
   for ctx in "${contexts[@]}"; do
-      echo "--- ctx=${ctx}  "
-
-      python benchmarking_script.py \
-          --num_layers  "${layers[$i]}"  \
-          --num_heads   "${heads[$i]}"   \
-          --d_model     "${d_models[$i]}"\
-          --d_ff        "${d_ffs[$i]}"   \
-          --context_length "${ctx}"      \
-          ${extra_fwd}                   \
-          ${COMMON_STATIC}
-      done
-    done
+    tag="${sizes[$i]}_ctx${ctx}"
+    echo "profiling $tag"
+    nsys profile --capture-range=nvtx --capture-range-end=stop \
+        -o "${OUT_DIR}/${tag}" \
+        python benchmarking_script.py \
+        --num_layers  "${layers[$i]}"  \
+        --num_heads   "${heads[$i]}"   \
+        --d_model     "${d_models[$i]}"\
+        --d_ff        "${d_ffs[$i]}"   \
+        --context_length "${ctx}"      \
+        ${COMMON_STATIC}
   done
 done
 
-echo; echo "All runs finished — results in ${OUT_CSV}"
+echo; echo "All runs finished — results in ${OUT_DIR}"
+
+tar czf "${OUT_DIR}/nsys_$(date +%F).tgz" -C "$(dirname $OUT_DIR)" "$(basename $OUT_DIR)"
+echo "Archive written to ${OUT_DIR}/nsys_$(date +%F).tgz"
