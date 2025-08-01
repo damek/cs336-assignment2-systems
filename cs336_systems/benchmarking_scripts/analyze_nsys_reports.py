@@ -52,6 +52,75 @@ def extract_forward_pass_timings():
     # Return the dataframe without saving or printing
     return df
 
+def extract_kernel_breakdown_by_nvtx_range(nvtx_range_name):
+    """Extract kernel breakdown (matrix multiply vs others) for a specific NVTX range."""
+    
+    # Get all nsys report files
+    nsys_dir = Path("../outputs/nsys")
+    nsys_files = sorted(nsys_dir.glob("*.nsys-rep"))
+    
+    if not nsys_files:
+        print("No .nsys-rep files found")
+        return None
+    
+    breakdown_data = []
+    
+    for f in nsys_files:
+        # Run nsys stats command for NVTX kernel summary
+        cmd = ["nsys", "stats", "--report", "nvtx_kern_sum", str(f)]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print(f"Error processing {f.name}: {result.stderr}")
+            continue
+        
+        # Parse output
+        lines = result.stdout.splitlines()
+        in_target_range = False
+        
+        matmul_time_ns = 0
+        other_time_ns = 0
+        total_time_ns = 0
+        
+        for line in lines:
+            # Check if we're in the target NVTX range section
+            if f":{nvtx_range_name}" in line and "PushPop" in line:
+                in_target_range = True
+                # Parse the kernel line
+                parts = line.split(None, 11)
+                if len(parts) >= 12:
+                    try:
+                        duration_ns = int(parts[6])
+                        kernel_name = parts[11]
+                        total_time_ns += duration_ns
+                        
+                        # Check if it's a matrix multiply (CUTLASS GEMM)
+                        if "cutlass" in kernel_name.lower() and "gemm" in kernel_name.lower():
+                            matmul_time_ns += duration_ns
+                        else:
+                            other_time_ns += duration_ns
+                            
+                    except (ValueError, IndexError):
+                        continue
+            elif in_target_range and line.strip() and not line.startswith(' :'):
+                # We've moved to a different NVTX range
+                in_target_range = False
+        
+        if total_time_ns > 0:
+            breakdown_data.append({
+                'file': f.stem,
+                'matmul_time_ms': matmul_time_ns / 1_000_000,
+                'other_time_ms': other_time_ns / 1_000_000,
+                'total_time_ms': total_time_ns / 1_000_000,
+                'matmul_fraction': matmul_time_ns / total_time_ns,
+                'other_fraction': other_time_ns / total_time_ns
+            })
+    
+    if not breakdown_data:
+        return None
+        
+    return pd.DataFrame(breakdown_data)
+
 def extract_kernels_by_nvtx_range(nvtx_range_name, top_n=1):
     """Extract CUDA kernels within a specific NVTX range from nsys reports."""
     
@@ -202,9 +271,32 @@ def create_nsys_analysis_report():
         content.append(top5_forward_df.to_markdown(index=False))
         content.append("\n\n")
     
+    # Question (d)
     content.append("## (d) Profile running one complete training step with your implementation of AdamW. How does the fraction of time spent on matrix multiplication change, compared to doing inference (forward pass only)? How about other kernels?\n\n")
     content.append("**Deliverable:** A 1-2 sentence response.\n\n")
-    content.append("**Answer:** [TO BE IMPLEMENTED]\n\n")
+    
+    # Get kernel breakdown for forward pass and train step
+    forward_breakdown_df = extract_kernel_breakdown_by_nvtx_range("forward_pass")
+    train_step_breakdown_df = extract_kernel_breakdown_by_nvtx_range("train_step")
+    
+    if forward_breakdown_df is not None and train_step_breakdown_df is not None:
+        # Merge the dataframes
+        comparison_df = pd.merge(
+            forward_breakdown_df[['file', 'matmul_fraction', 'other_fraction']],
+            train_step_breakdown_df[['file', 'matmul_fraction', 'other_fraction']], 
+            on='file', 
+            suffixes=('_forward', '_train')
+        )
+        
+        # Format percentages
+        comparison_df['matmul_forward_%'] = (comparison_df['matmul_fraction_forward'] * 100).round(1)
+        comparison_df['matmul_train_%'] = (comparison_df['matmul_fraction_train'] * 100).round(1)
+        comparison_df['other_forward_%'] = (comparison_df['other_fraction_forward'] * 100).round(1)
+        comparison_df['other_train_%'] = (comparison_df['other_fraction_train'] * 100).round(1)
+        
+        content.append("### Matrix Multiplication vs Other Kernels: Forward Pass vs Complete Training Step\n\n")
+        content.append(comparison_df[['file', 'matmul_forward_%', 'matmul_train_%', 'other_forward_%', 'other_train_%']].to_markdown(index=False))
+        content.append("\n\n")
     
     content.append("## (e) Compare the runtime of the softmax operation versus the matrix multiplication operations within the self-attention layer of your model during a forward pass. How does the difference in runtimes compare to the difference in FLOPs?\n\n")
     content.append("**Deliverable:** A 1-2 sentence response.\n\n")
