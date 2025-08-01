@@ -49,19 +49,7 @@ def extract_forward_pass_timings():
     # Convert nanoseconds to milliseconds for readability
     df['duration_ms'] = df['duration_ns'] / 1_000_000
     
-    # Save to markdown
-    output_file = Path("../outputs/forward_pass_timings.md")
-    markdown_content = df[['file', 'duration_ms', 'percentage']].to_markdown(index=False)
-    
-    with open(output_file, 'w') as f:
-        f.write("# Forward Pass Timings\n\n")
-        f.write(markdown_content)
-        f.write("\n")
-    
-    # Echo to terminal
-    print("\nForward Pass Timings:")
-    print(markdown_content)
-    print(f"\nSaved to {output_file}")
+    # Return the dataframe without saving or printing
     return df
 
 def extract_forward_pass_kernels():
@@ -143,51 +131,59 @@ def create_nsys_analysis_report():
     
     output_file = Path("../outputs/nsys_analysis_report.md")
     
-    with open(output_file, 'w') as f:
-        f.write("# Nsight Systems Profiling Analysis Report\n\n")
-        
-        # Question (a)
-        f.write("## (a) What is the total time spent on your forward pass? Does it match what we had measured before with the Python standard library?\n\n")
-        f.write("**Deliverable:** A 1-2 sentence response.\n\n")
-        
-        # Extract forward pass timings
-        timings_df = extract_forward_pass_timings()
-        if timings_df is not None:
-            f.write("### Forward Pass Timings\n\n")
-            f.write(timings_df[['file', 'duration_ms', 'percentage']].to_markdown(index=False))
-            f.write("\n\n**Answer:** [TO BE FILLED: Compare these timings with Python standard library measurements]\n\n")
-        
-        # Question (b)
-        f.write("## (b) What CUDA kernel takes the most cumulative GPU time during the forward pass? How many times is this kernel invoked during a single forward pass of your model?\n\n")
-        f.write("**Deliverable:** A 1-2 sentence response.\n\n")
-        
-        # Extract kernel data
-        top_kernels_df, all_kernels_df = extract_forward_pass_kernels()
-        if top_kernels_df is not None:
-            f.write("### Top CUDA Kernels in Forward Pass by Model Configuration\n\n")
-            f.write(top_kernels_df.to_markdown(index=False))
-            f.write("\n\n")
-            
-            # Also show overall top kernel
-            if all_kernels_df is not None:
-                top_overall = all_kernels_df.nlargest(1, 'duration_ns').iloc[0]
-                f.write(f"**Answer:** The CUDA kernel that takes the most cumulative GPU time is `{top_overall['kernel_name'][:80]}...`, ")
-                f.write(f"invoked {top_overall['count']} times during a single forward pass.\n\n")
-        
-        # Placeholder for remaining questions
-        f.write("## (c) What other kernels besides matrix multiplies do you see accounting for non-trivial CUDA runtime in the forward pass?\n\n")
-        f.write("**Deliverable:** A 1-2 sentence response.\n\n")
-        f.write("**Answer:** [TO BE IMPLEMENTED]\n\n")
-        
-        f.write("## (d) Profile running one complete training step with your implementation of AdamW. How does the fraction of time spent on matrix multiplication change, compared to doing inference (forward pass only)? How about other kernels?\n\n")
-        f.write("**Deliverable:** A 1-2 sentence response.\n\n")
-        f.write("**Answer:** [TO BE IMPLEMENTED]\n\n")
-        
-        f.write("## (e) Compare the runtime of the softmax operation versus the matrix multiplication operations within the self-attention layer of your model during a forward pass. How does the difference in runtimes compare to the difference in FLOPs?\n\n")
-        f.write("**Deliverable:** A 1-2 sentence response.\n\n")
-        f.write("**Answer:** [TO BE IMPLEMENTED]\n\n")
+    # Build the markdown content
+    content = []
+    content.append("# Nsight Systems Profiling Analysis Report\n\n")
     
-    print(f"\nComprehensive analysis saved to {output_file}")
+    # Question (a)
+    content.append("## (a) What is the total time spent on your forward pass? Does it match what we had measured before with the Python standard library?\n\n")
+    content.append("**Deliverable:** A 1-2 sentence response.\n\n")
+    
+    # Extract forward pass timings
+    timings_df = extract_forward_pass_timings()
+    if timings_df is not None:
+        content.append("### Forward Pass Timings\n\n")
+        content.append(timings_df[['file', 'duration_ms', 'percentage']].to_markdown(index=False))
+        content.append("\n\n**Answer:** [TO BE FILLED: Compare these timings with Python standard library measurements]\n\n")
+    
+    # Question (b)
+    content.append("## (b) What CUDA kernel takes the most cumulative GPU time during the forward pass? How many times is this kernel invoked during a single forward pass of your model?\n\n")
+    content.append("**Deliverable:** A 1-2 sentence response.\n\n")
+    
+    # Extract kernel data
+    top_kernels_df, all_kernels_df = extract_forward_pass_kernels()
+    if top_kernels_df is not None:
+        content.append("### Top CUDA Kernels in Forward Pass by Model Configuration\n\n")
+        content.append(top_kernels_df.to_markdown(index=False))
+        content.append("\n\n")
+        
+        # Also show overall top kernel
+        if all_kernels_df is not None:
+            top_overall = all_kernels_df.nlargest(1, 'duration_ns').iloc[0]
+            content.append(f"**Answer:** The CUDA kernel that takes the most cumulative GPU time is `{top_overall['kernel_name'][:80]}...`, ")
+            content.append(f"invoked {top_overall['count']} times during a single forward pass.\n\n")
+    
+    # Placeholder for remaining questions
+    content.append("## (c) What other kernels besides matrix multiplies do you see accounting for non-trivial CUDA runtime in the forward pass?\n\n")
+    content.append("**Deliverable:** A 1-2 sentence response.\n\n")
+    content.append("**Answer:** [TO BE IMPLEMENTED]\n\n")
+    
+    content.append("## (d) Profile running one complete training step with your implementation of AdamW. How does the fraction of time spent on matrix multiplication change, compared to doing inference (forward pass only)? How about other kernels?\n\n")
+    content.append("**Deliverable:** A 1-2 sentence response.\n\n")
+    content.append("**Answer:** [TO BE IMPLEMENTED]\n\n")
+    
+    content.append("## (e) Compare the runtime of the softmax operation versus the matrix multiplication operations within the self-attention layer of your model during a forward pass. How does the difference in runtimes compare to the difference in FLOPs?\n\n")
+    content.append("**Deliverable:** A 1-2 sentence response.\n\n")
+    content.append("**Answer:** [TO BE IMPLEMENTED]\n\n")
+    
+    # Join all content and write to file
+    full_content = ''.join(content)
+    with open(output_file, 'w') as f:
+        f.write(full_content)
+    
+    # Print the entire markdown to terminal
+    print(full_content)
+    print(f"\nAnalysis also saved to {output_file}")
 
 if __name__ == "__main__":
     create_nsys_analysis_report()
