@@ -51,12 +51,17 @@ def extract_forward_pass_timings():
     
     # Save to markdown
     output_file = Path("../outputs/forward_pass_timings.md")
+    markdown_content = df[['file', 'duration_ms', 'percentage']].to_markdown(index=False)
+    
     with open(output_file, 'w') as f:
         f.write("# Forward Pass Timings\n\n")
-        f.write(df[['file', 'duration_ms', 'percentage']].to_markdown(index=False))
+        f.write(markdown_content)
         f.write("\n")
     
-    print(f"Saved to {output_file}")
+    # Echo to terminal
+    print("\nForward Pass Timings:")
+    print(markdown_content)
+    print(f"\nSaved to {output_file}")
     return df
 
 if __name__ == "__main__":
