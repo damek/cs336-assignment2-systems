@@ -371,7 +371,15 @@ def create_nsys_analysis_report():
         content.append(attention_df[['file', 'softmax_ms', 'matmul_ms', 'runtime_ratio_%']].to_markdown(index=False))
         content.append("\n\n")
         content.append("**Note:** runtime_ratio_% = (softmax_time / matmul_time) * 100\n\n")
-        content.append("**Answer:** [TO BE FILLED: Compare this runtime ratio to the theoretical FLOP ratio]\n\n")
+        
+        # Add theoretical FLOP ratio information
+        content.append("**Theoretical FLOP Analysis:**\n")
+        content.append("- **Attention matrix multiplies (per layer):**\n")
+        content.append("  - Q*K^T: 2 * seq_len * seq_len * d_head FLOPs\n")
+        content.append("  - Softmax(scores) * V: 2 * seq_len * seq_len * d_head FLOPs\n")
+        content.append("  - Output projection: 2 * seq_len * d_model * d_model FLOPs\n")
+        content.append("- **Softmax (per layer):** seq_len * seq_len FLOPs (for exp and normalization)\n\n")
+        content.append("**FLOP Ratio:** For typical transformers, matrix multiplies dominate with O(seq_len² * d_model) vs softmax's O(seq_len²)\n\n")
     
     # Join all content and write to file
     full_content = ''.join(content)
