@@ -83,7 +83,7 @@ def forward_pass():
     else:
         model.zero_grad()
         loss = loss_fn()
-        with maybe_range("backward", args.nvtx):
+        with maybe_range("Loss backward", args.nvtx):
             loss.backward()
 
 # If nvtx we hard code some stuff.
@@ -104,16 +104,16 @@ with maybe_range("warmup", args.nvtx):
 if args.nvtx:
     args.only_forward = True
 # benchmark
-with maybe_range("forward_pass", args.nvtx):
+with maybe_range("Forward only", args.nvtx):
     print("Running forward pass...")
     bench_times, bench_oom = run_section(forward_pass, args.num_benchmark)
 
 if args.nvtx:
     print("Running train step...")
     args.only_forward=False
-    with maybe_range("train_step", args.nvtx):
+    with maybe_range("Train step", args.nvtx):
         bench_times, bench_oom = run_section(forward_pass, args.num_benchmark)
-        with maybe_range("optimizer_step", args.nvtx):
+        with maybe_range("Optimizer step", args.nvtx):
             opt.step()
 
 
