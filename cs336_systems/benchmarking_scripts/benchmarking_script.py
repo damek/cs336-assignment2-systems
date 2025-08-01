@@ -94,7 +94,12 @@ if args.nvtx:
 # warm-up
 with maybe_range("warmup", args.nvtx):
     print("Running warm-up...")
+    # Temporarily disable inner NVTX ranges during warmup to avoid double counting
+    original_nvtx = args.nvtx
+    if args.nvtx:
+        args.nvtx = False
     _, warmup_oom = run_section(forward_pass, args.num_warmup)
+    args.nvtx = original_nvtx
 
 if args.nvtx:
     args.only_forward = True
