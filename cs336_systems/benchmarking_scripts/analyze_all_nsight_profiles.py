@@ -216,6 +216,14 @@ class NsightProfileAnalyzer:
                     result['model_eval_ms'] = time_ms
                 elif 'loss' in name:
                     result['loss_ms'] = time_ms
+                elif 'softmax' in name:
+                    # Store NVTX softmax timing
+                    result['nvtx_softmax_ms'] = time_ms
+                    result['nvtx_softmax_count'] = count
+                elif 'attn' in name:
+                    # Store attention timing
+                    result['nvtx_attn_ms'] = time_ms
+                    result['nvtx_attn_count'] = count
         
         else:
             # Fallback to CSV approach
@@ -572,34 +580,49 @@ class NsightProfileAnalyzer:
     
     def find_attention_kernels(self):
         """Try to identify attention-specific kernels for question (e)."""
-        # This is approximate since we don't have NVTX ranges for attention specifically
         attention_data = []
         
         for key, result in self.results.items():
-            if 'non_gemm_kernels' in result:
-                # Look for attention-related patterns
-                attention_softmax = 0
-                attention_matmul = 0
+            # Use NVTX timings if available
+            if 'nvtx_softmax_ms' in result and 'nvtx_attn_ms' in result:
+                softmax_ms = result['nvtx_softmax_ms']
+                attn_total_ms = result['nvtx_attn_ms']
                 
-                for kernel in result.get('non_gemm_kernels', []):
-                    if any(p in kernel['name'].lower() for p in ['attention', 'attn', 'scaled_dot']):
-                        if kernel['type'] == 'softmax':
-                            attention_softmax += kernel['time_ms']
+                # Estimate matmul time as attention total minus softmax
+                # This is approximate but better than guessing
+                matmul_ms = max(0, attn_total_ms - softmax_ms)
+                
+                # Also check actual softmax kernels
+                kernel_softmax = 0
+                if 'softmax_time_ms' in result:
+                    kernel_softmax = result['softmax_time_ms']
+                
+                attention_data.append({
+                    'Model': result['model_size'],
+                    'Context': result['context_length'],
+                    'NVTX Softmax (ms)': f"{softmax_ms:.2f}",
+                    'Kernel Softmax (ms)': f"{kernel_softmax:.2f}",
+                    'Est. MatMul (ms)': f"{matmul_ms:.2f}",
+                    'Ratio': f"{(softmax_ms/matmul_ms):.3f}" if matmul_ms > 0 else 'N/A'
+                })
+            else:
+                # Fallback to kernel analysis
+                attention_softmax = result.get('softmax_time_ms', 0)
                 
                 # Estimate attention matmul as a fraction of total GEMM
-                # (This is approximate - better would be to add NVTX ranges in attention)
                 if result.get('gemm_time_ms', 0) > 0:
                     # Assume ~30% of GEMM is in attention layers
                     attention_matmul = result['gemm_time_ms'] * 0.3
-                
-                if attention_softmax > 0 or attention_matmul > 0:
-                    attention_data.append({
-                        'Model': result['model_size'],
-                        'Context': result['context_length'],
-                        'Softmax (ms)': f"{attention_softmax:.2f}",
-                        'MatMul (ms)': f"{attention_matmul:.2f}",
-                        'Ratio': f"{(attention_softmax/attention_matmul):.3f}" if attention_matmul > 0 else 'N/A'
-                    })
+                    
+                    if attention_matmul > 0:
+                        attention_data.append({
+                            'Model': result['model_size'],
+                            'Context': result['context_length'],
+                            'NVTX Softmax (ms)': 'N/A',
+                            'Kernel Softmax (ms)': f"{attention_softmax:.2f}",
+                            'Est. MatMul (ms)': f"{attention_matmul:.2f}",
+                            'Ratio': f"{(attention_softmax/attention_matmul):.3f}" if attention_matmul > 0 else 'N/A'
+                        })
         
         return pd.DataFrame(attention_data)
     
@@ -608,6 +631,18 @@ class NsightProfileAnalyzer:
         print("\n" + "="*80)
         print("COMPREHENSIVE NSIGHT PROFILING ANALYSIS")
         print("="*80)
+        
+        # Show which profiles were analyzed
+        print(f"\nAnalyzed {len(self.results)} profile files:")
+        missing = []
+        for model in self.model_sizes:
+            for ctx in self.context_lengths:
+                key = f"{model}_ctx{ctx}"
+                if key not in self.results:
+                    missing.append(key)
+        
+        if missing:
+            print(f"Missing profiles: {', '.join(missing)}")
         
         # Question (a)
         print("\n## Question (a): Forward Pass Timing\n")
