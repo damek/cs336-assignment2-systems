@@ -88,7 +88,6 @@ def forward_pass():
 
 # If nvtx we hard code some stuff.
 if args.nvtx:
-    args.only_forward = True
     args.num_warmup = 5
     args.num_benchmark = 1
 
@@ -97,6 +96,8 @@ with maybe_range("warmup", args.nvtx):
     print("Running warm-up...")
     _, warmup_oom = run_section(forward_pass, args.num_warmup)
 
+if args.nvtx:
+    args.only_forward = True
 # benchmark
 with maybe_range("forward_pass", args.nvtx):
     print("Running forward pass...")
