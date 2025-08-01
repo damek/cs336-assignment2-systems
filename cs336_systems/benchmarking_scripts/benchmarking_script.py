@@ -103,6 +103,7 @@ with maybe_range("forward_pass", args.nvtx):
     bench_times, bench_oom = run_section(forward_pass, args.num_benchmark)
 
 if args.nvtx:
+    print("Running train step...")
     with maybe_range("train_step", args.nvtx):
         bench_times, bench_oom = run_section(forward_pass, args.num_benchmark)
         with maybe_range("optimizer_step", args.nvtx):
