@@ -14,11 +14,12 @@ from collections import defaultdict
 import argparse
 
 class NsightProfileAnalyzer:
-    def __init__(self, nsys_dir):
+    def __init__(self, nsys_dir, debug=False):
         self.nsys_dir = Path(nsys_dir)
         self.results = {}
         self.model_sizes = ['small', 'medium', 'large', 'xl', '2.7B']
         self.context_lengths = [128, 256, 512, 1024]
+        self.debug = debug
         
     def run_nsys_stats(self, file_path, report_type, format_type="csv"):
         """Run nsys stats command."""
@@ -87,19 +88,26 @@ class NsightProfileAnalyzer:
                             if col in nvtx_df.columns), None)
             
             if time_col:
-                # Extract specific ranges
+                # Extract specific ranges - try multiple possible names
                 for idx, row in nvtx_df.iterrows():
                     name = str(row.get('Name', '')).lower()
-                    if 'forward_pass' in name:
+                    original_name = str(row.get('Name', ''))
+                    
+                    # Debug: print NVTX range names to see what's actually there
+                    if self.debug and idx < 5:  # Only print first few
+                        print(f"  NVTX range: {original_name} ({row[time_col] / 1e6:.2f} ms)")
+                    
+                    # Try multiple patterns for forward pass
+                    if any(p in name for p in ['forward_pass', 'forward pass', 'forward', 'fwd', 'model_forward']):
                         result['forward_pass_ms'] = row[time_col] / 1e6
                         result['forward_pass_count'] = row.get('Count', 1)
                     elif 'backward' in name and 'backward_ms' not in result:
                         result['backward_ms'] = row[time_col] / 1e6
-                    elif 'train_step' in name:
+                    elif any(p in name for p in ['train_step', 'training_step', 'train step']):
                         result['train_step_ms'] = row[time_col] / 1e6
-                    elif 'optimizer_step' in name:
+                    elif any(p in name for p in ['optimizer_step', 'optimizer step', 'optimizer']):
                         result['optimizer_step_ms'] = row[time_col] / 1e6
-                    elif 'model_eval' in name:
+                    elif any(p in name for p in ['model_eval', 'eval', 'evaluation']):
                         result['model_eval_ms'] = row[time_col] / 1e6
                     elif 'loss' in name and 'loss_ms' not in result:
                         result['loss_ms'] = row[time_col] / 1e6
@@ -153,7 +161,7 @@ class NsightProfileAnalyzer:
                     # Categorize
                     if any(p in kernel_lower for p in ['gemm', 'gemv', 'cublas', 'wmma', 'tensor_core', 'sgemm', 'dgemm']):
                         gemm_time += time_ns
-                    elif 'softmax' in kernel_lower:
+                    elif any(p in kernel_lower for p in ['softmax', 'log_softmax', 'logsoftmax', 'cross_entropy']):
                         softmax_time += time_ns
                         if len([k for k in result['non_gemm_kernels'] if 'softmax' in k['type']]) < 2:
                             result['non_gemm_kernels'].append({
@@ -161,7 +169,7 @@ class NsightProfileAnalyzer:
                                 'time_ms': time_ms,
                                 'type': 'softmax'
                             })
-                    elif any(p in kernel_lower for p in ['elementwise', 'binary', 'unary', 'activation', 'gelu', 'relu']):
+                    elif any(p in kernel_lower for p in ['elementwise', 'binary', 'unary', 'activation', 'gelu', 'relu', 'add', 'mul', 'div']):
                         elementwise_time += time_ns
                         if len([k for k in result['non_gemm_kernels'] if 'elementwise' in k['type']]) < 2:
                             result['non_gemm_kernels'].append({
@@ -172,7 +180,14 @@ class NsightProfileAnalyzer:
                     elif any(p in kernel_lower for p in ['memcpy', 'memset', 'copy']):
                         memory_time += time_ns
                     else:
-                        other_time += time_ns
+                        # Check if it might be a reduction kernel (often used in softmax)
+                        if any(p in kernel_lower for p in ['reduce', 'reduction', 'sum', 'max']):
+                            # Many softmax implementations use reduction kernels
+                            softmax_time += time_ns * 0.5  # Count partial as softmax
+                            other_time += time_ns * 0.5
+                        else:
+                            other_time += time_ns
+                        
                         if time_ms > 0.1 and len(result['non_gemm_kernels']) < 5:  # Only significant kernels
                             result['non_gemm_kernels'].append({
                                 'name': kernel_name,
@@ -417,17 +432,28 @@ class NsightProfileAnalyzer:
         print("- MatMul can utilize tensor cores efficiently (high arithmetic intensity)")
         print("- Softmax requires exp() operations which are more expensive than multiply-add")
         
-        # Save results
+        # Save results with custom JSON encoder
+        class NumpyEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, (np.integer, np.int64)):
+                    return int(obj)
+                elif isinstance(obj, (np.floating, np.float64)):
+                    return float(obj)
+                elif isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                return super(NumpyEncoder, self).default(obj)
+        
         with open('nsight_analysis_results.json', 'w') as f:
-            json.dump(self.results, f, indent=2)
+            json.dump(self.results, f, indent=2, cls=NumpyEncoder)
         print(f"\n✓ Detailed results saved to nsight_analysis_results.json")
 
 def main():
     parser = argparse.ArgumentParser(description='Comprehensive Nsight profiling analysis')
     parser.add_argument('nsys_dir', help='Directory containing .nsys files')
+    parser.add_argument('--debug', action='store_true', help='Enable debug output')
     args = parser.parse_args()
     
-    analyzer = NsightProfileAnalyzer(args.nsys_dir)
+    analyzer = NsightProfileAnalyzer(args.nsys_dir, debug=args.debug)
     analyzer.analyze_all_files()
     analyzer.generate_report()
 
