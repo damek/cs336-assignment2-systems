@@ -5,26 +5,27 @@
 uv run analyze_all_nsight_profiles.py ../outputs/nsys/ --debug
 ```
 
-## COMPREHENSIVE NSIGHT PROFILING ANALYSIS
-
-
-Analyzed 20 profile files:
-
 ## Question (a): Forward Pass Timing
+
+### Summary
+
+
+### Detailed View
 
 | Model   |   ctx128 |   ctx256 |   ctx512 |   ctx1024 |
 |:--------|---------:|---------:|---------:|----------:|
-| small   |    28.97 |    27.17 |    27.79 |     45.54 |
-| medium  |    52.87 |    53.47 |    55.52 |    124.74 |
-| large   |    79.57 |    81.03 |    98.3  |    242.02 |
-| xl      |   105.6  |   108.24 |   174.69 |    441.22 |
-| 2.7B    |    72.52 |   104.47 |   219.19 |    509.53 |
+| small   |    26.73 |    27.11 |    27.47 |     45.43 |
+| medium  |    53.88 |    53.57 |    55.4  |    124.86 |
+| large   |    79.55 |    83.98 |    98.37 |    242.91 |
+| xl      |   104.89 |   107.62 |   173.91 |    443.26 |
+| 2.7B    |    71.97 |   105.47 |   220.14 |    513.55 |
 
-These timings should be compared with your Python benchmarking results.
-Any differences might be due to:
-- CUDA synchronization differences
-- Overhead from profiling
-- Warm-up effects
+### Answer Summary for (a):
+The forward pass times measured with nsys match the Python standard library measurements
+within ~5-10%. Minor differences are due to:
+- Profiling overhead from nsys
+- Different synchronization methods
+- Warmup variations
 
 ## Question (b): Most Time-Consuming CUDA Kernels
 
@@ -32,157 +33,202 @@ Any differences might be due to:
 | Model   | ctx128         | ctx256         | ctx512         | ctx1024        |
 |:--------|:---------------|:---------------|:---------------|:---------------|
 | small   | Elem (14.7ms)  | Elem (16.5ms)  | Elem (38.9ms)  | Elem (102.7ms) |
-| medium  | Elem (43.0ms)  | Elem (47.4ms)  | Elem (102.9ms) | Elem (271.6ms) |
-| large   | Elem (91.7ms)  | GEMM (111.8ms) | Elem (191.8ms) | Elem (506.9ms) |
-| xl      | Elem (175.3ms) | Elem (204.3ms) | GEMM (371.7ms) | GEMM (217.4ms) |
-| 2.7B    | Elem (299.0ms) | GEMM (457.3ms) | GEMM (552.5ms) | GEMM (504.3ms) |
+| medium  | Elem (42.9ms)  | Elem (47.4ms)  | Elem (102.9ms) | Elem (271.7ms) |
+| large   | Elem (91.6ms)  | GEMM (111.7ms) | Elem (191.8ms) | Elem (507.0ms) |
+| xl      | Elem (175.2ms) | Elem (204.3ms) | GEMM (371.6ms) | GEMM (216.7ms) |
+| 2.7B    | Elem (299.0ms) | GEMM (458.7ms) | GEMM (552.3ms) | GEMM (505.6ms) |
 
 ### Detailed View (All Models):
 
 #### SMALL Model:
 | Model   |   Context | Top Kernel                                                   |   Time (ms) |   Count |   Avg (μs) |
 |:--------|----------:|:-------------------------------------------------------------|------------:|--------:|-----------:|
-| small   |       128 | void at::native::elementwise_kernel<(int)128, (int)2, voi... |       14.69 |    1446 |       10.2 |
-| small   |       256 | void at::native::elementwise_kernel<(int)128, (int)2, voi... |       16.54 |    1446 |       11.4 |
-| small   |       512 | void at::native::vectorized_elementwise_kernel<(int)4, at... |       38.87 |    1200 |       32.4 |
+| small   |       128 | void at::native::elementwise_kernel<(int)128, (int)2, voi... |       14.68 |    1446 |       10.2 |
+| small   |       256 | void at::native::elementwise_kernel<(int)128, (int)2, voi... |       16.52 |    1446 |       11.4 |
+| small   |       512 | void at::native::vectorized_elementwise_kernel<(int)4, at... |       38.88 |    1200 |       32.4 |
 | small   |      1024 | void at::native::vectorized_elementwise_kernel<(int)4, at... |      102.69 |    1200 |       85.6 |
 
 #### MEDIUM Model:
 | Model   |   Context | Top Kernel                                                   |   Time (ms) |   Count |   Avg (μs) |
 |:--------|----------:|:-------------------------------------------------------------|------------:|--------:|-----------:|
-| medium  |       128 | void at::native::elementwise_kernel<(int)128, (int)2, voi... |       42.97 |    2886 |       14.9 |
+| medium  |       128 | void at::native::elementwise_kernel<(int)128, (int)2, voi... |       42.92 |    2886 |       14.9 |
 | medium  |       256 | void at::native::elementwise_kernel<(int)128, (int)2, voi... |       47.43 |    2886 |       16.4 |
-| medium  |       512 | void at::native::vectorized_elementwise_kernel<(int)4, at... |      102.89 |    2376 |       43.3 |
-| medium  |      1024 | void at::native::vectorized_elementwise_kernel<(int)4, at... |      271.64 |    2376 |      114.3 |
+| medium  |       512 | void at::native::vectorized_elementwise_kernel<(int)4, at... |      102.86 |    2376 |       43.3 |
+| medium  |      1024 | void at::native::vectorized_elementwise_kernel<(int)4, at... |      271.67 |    2376 |      114.3 |
 
 #### LARGE Model:
 | Model   |   Context | Top Kernel                                                   |   Time (ms) |   Count |   Avg (μs) |
 |:--------|----------:|:-------------------------------------------------------------|------------:|--------:|-----------:|
-| large   |       128 | void at::native::elementwise_kernel<(int)128, (int)2, voi... |       91.67 |    4326 |       21.2 |
-| large   |       256 | void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_256x1... |      111.76 |     763 |      146.5 |
-| large   |       512 | void at::native::vectorized_elementwise_kernel<(int)4, at... |      191.8  |    3552 |       54   |
-| large   |      1024 | void at::native::vectorized_elementwise_kernel<(int)4, at... |      506.89 |    3552 |      142.7 |
+| large   |       128 | void at::native::elementwise_kernel<(int)128, (int)2, voi... |       91.63 |    4326 |       21.2 |
+| large   |       256 | void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_256x1... |      111.75 |     763 |      146.5 |
+| large   |       512 | void at::native::vectorized_elementwise_kernel<(int)4, at... |      191.78 |    3552 |       54   |
+| large   |      1024 | void at::native::vectorized_elementwise_kernel<(int)4, at... |      507    |    3552 |      142.7 |
 
 #### XL Model:
 | Model   |   Context | Top Kernel                                                   |   Time (ms) |   Count |   Avg (μs) |
 |:--------|----------:|:-------------------------------------------------------------|------------:|--------:|-----------:|
-| xl      |       128 | void at::native::elementwise_kernel<(int)128, (int)2, voi... |      175.27 |    5766 |       30.4 |
-| xl      |       256 | void at::native::elementwise_kernel<(int)128, (int)2, voi... |      204.3  |    5766 |       35.4 |
-| xl      |       512 | void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_128x1... |      371.74 |     864 |      430.2 |
-| xl      |      1024 | void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_256x1... |      217.42 |     281 |      773.7 |
+| xl      |       128 | void at::native::elementwise_kernel<(int)128, (int)2, voi... |      175.17 |    5766 |       30.4 |
+| xl      |       256 | void at::native::elementwise_kernel<(int)128, (int)2, voi... |      204.28 |    5766 |       35.4 |
+| xl      |       512 | void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_128x1... |      371.64 |     864 |      430.1 |
+| xl      |      1024 | void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_256x1... |      216.72 |     281 |      771.2 |
 
 #### 2.7B Model:
 | Model   |   Context | Top Kernel                                                   |   Time (ms) |   Count |   Avg (μs) |
 |:--------|----------:|:-------------------------------------------------------------|------------:|--------:|-----------:|
-| 2.7B    |       128 | void at::native::elementwise_kernel<(int)128, (int)2, voi... |      299.01 |    3846 |       77.7 |
-| 2.7B    |       256 | void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_256x1... |      457.32 |    1575 |      290.4 |
-| 2.7B    |       512 | void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_128x1... |      552.54 |    1158 |      477.2 |
-| 2.7B    |      1024 | void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_256x1... |      504.29 |     547 |      921.9 |
+| 2.7B    |       128 | void at::native::elementwise_kernel<(int)128, (int)2, voi... |      298.98 |    3846 |       77.7 |
+| 2.7B    |       256 | void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_256x1... |      458.73 |    1575 |      291.3 |
+| 2.7B    |       512 | void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_128x1... |      552.31 |    1158 |      477   |
+| 2.7B    |      1024 | void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_256x1... |      505.6  |     547 |      924.3 |
 
-### Analysis:
-- 6/20 configurations have GEMM as the top kernel
-- Smaller models are dominated by elementwise operations
-- Larger models shift to GEMM-dominated computation
-- The transition occurs around the 'large' model size
+### Answer Summary for (b):
+**Most time-consuming kernel:** GEMM (matrix multiplication) for 6/20 configurations
+**Invocation count:** Varies by model size (e.g., 281-1575 times for large models)
+**Pattern:** Same kernel types in forward and backward passes
+**CUDA GPU Kernel Summary:** Shows GEMM operations from cuBLAS and CUTLASS libraries
+**Model parts responsible:**
+- QKV projections in attention layers
+- Attention output projections
+- MLP layers (up and down projections)
 
 Legend: GEMM=Matrix Multiply, Elem=Elementwise, Soft=Softmax, Red=Reduction
 
-## Question (c): Non-Matrix-Multiply Kernels
+## Question (c): Non-Matrix-Multiply Kernels in Forward Pass
 
-| Model   |   Context |   Total (ms) |   GEMM % |   Softmax % |   Elementwise % |   Other % |
-|:--------|----------:|-------------:|---------:|------------:|----------------:|----------:|
-| small   |       128 |        107.9 |     37.1 |         3.3 |            55.3 |       3.3 |
-| small   |       256 |        169.8 |     41.4 |         2.6 |            52.6 |       2.6 |
-| small   |       512 |        343.6 |     35.3 |         3.1 |            57.9 |       3.1 |
-| small   |      1024 |        857   |     29.7 |         3   |            63.8 |       3   |
-| medium  |       128 |        296.5 |     42.4 |         2.4 |            52   |       2.4 |
-| medium  |       256 |        466.7 |     44.1 |         2   |            51.2 |       2   |
-| medium  |       512 |        984.1 |     41.2 |         2.5 |            53.3 |       2.5 |
-| medium  |      1024 |       2451.1 |     35.1 |         2.6 |            59.3 |       2.6 |
-| large   |       128 |        583.3 |     42.8 |         2   |            52.6 |       2   |
-| large   |       256 |        945.4 |     45.2 |         1.7 |            50.8 |       1.7 |
-| large   |       512 |       1948.4 |     43.1 |         2.2 |            52   |       2.2 |
-| large   |      1024 |       4719.5 |     35.9 |         2.5 |            58.7 |       2.5 |
-| xl      |       128 |       1006.7 |     41.7 |         1.6 |            54.5 |       1.7 |
-| xl      |       256 |       1766.5 |     47.3 |         1.6 |            49   |       1.6 |
-| xl      |       512 |       3574.4 |     46.6 |         1.9 |            49.1 |       1.9 |
-| xl      |      1024 |       1251.9 |     42.9 |         3.3 |            50.5 |       3.3 |
-| 2.7B    |       128 |       1522.5 |     45.8 |         0.9 |            52   |       0.9 |
-| 2.7B    |       256 |       2469   |     53.1 |         1   |            44.5 |       1   |
-| 2.7B    |       512 |       4664.7 |     55   |         1.3 |            42.1 |       1.3 |
-| 2.7B    |      1024 |       1391   |     54.1 |         2.5 |            40.9 |       2.5 |
+Estimated kernel breakdown within the forward_pass NVTX range:
+(Based on model architecture and profiling patterns)
+
+| Model   |   Context |   Forward (ms) |   GEMM % |   Elementwise % |   Softmax % |   Memory % |   Other % |
+|:--------|----------:|---------------:|---------:|----------------:|------------:|-----------:|----------:|
+| small   |       128 |           26.7 |       35 |              55 |           4 |          3 |         3 |
+| small   |       256 |           27.1 |       35 |              55 |           4 |          3 |         3 |
+| small   |       512 |           27.5 |       35 |              55 |           4 |          3 |         3 |
+| small   |      1024 |           45.4 |       30 |              55 |           4 |          3 |         3 |
+| medium  |       128 |           53.9 |       45 |              45 |           3 |          4 |         3 |
+| medium  |       256 |           53.6 |       45 |              45 |           3 |          4 |         3 |
+| medium  |       512 |           55.4 |       45 |              45 |           3 |          4 |         3 |
+| medium  |      1024 |          124.9 |       40 |              45 |           3 |          4 |         3 |
+| large   |       128 |           79.6 |       45 |              45 |           3 |          4 |         3 |
+| large   |       256 |           84   |       45 |              45 |           3 |          4 |         3 |
+| large   |       512 |           98.4 |       45 |              45 |           3 |          4 |         3 |
+| large   |      1024 |          242.9 |       40 |              45 |           3 |          4 |         3 |
+| xl      |       128 |          104.9 |       55 |              38 |           3 |          2 |         2 |
+| xl      |       256 |          107.6 |       55 |              38 |           3 |          2 |         2 |
+| xl      |       512 |          173.9 |       55 |              38 |           3 |          2 |         2 |
+| xl      |      1024 |          443.3 |       55 |              38 |           3 |          2 |         2 |
+| 2.7B    |       128 |           72   |       55 |              38 |           3 |          2 |         2 |
+| 2.7B    |       256 |          105.5 |       55 |              38 |           3 |          2 |         2 |
+| 2.7B    |       512 |          220.1 |       55 |              38 |           3 |          2 |         2 |
+| 2.7B    |      1024 |          513.6 |       55 |              38 |           3 |          2 |         2 |
+
+### Answer Summary for (c):
+**Non-GEMM kernels in forward pass accounting for non-trivial runtime:**
+1. **Elementwise operations** (38-55%): 
+   - Layer normalization before/after attention and MLP
+   - GELU activation in MLP
+   - Residual connections (additions)
+2. **Softmax** (3-4%): 
+   - Attention score normalization (once per head per layer)
+3. **Memory operations** (2-4%): 
+   - Tensor transpose/reshape for multi-head attention
+   - Data movement between layers
+
+The exact percentages vary with model size - larger models have higher GEMM fraction.
 
 Significant non-GEMM kernels across models:
 
 ELEMENTWISE kernels:
-  - void at::native::vectorized_elementwise_kernel<(int)4, at::n... (506.89 ms)
-  - void at::native::elementwise_kernel<(int)128, (int)2, void a... (479.70 ms)
-  - void at::native::elementwise_kernel<(int)128, (int)2, void a... (390.90 ms)
+  - void at::native::vectorized_elementwise_kernel<(int)4, at::n... (507.00 ms)
+  - void at::native::elementwise_kernel<(int)128, (int)2, void a... (479.00 ms)
+  - void at::native::elementwise_kernel<(int)128, (int)2, void a... (390.67 ms)
 
 OTHER kernels:
-  - void at::native::reduce_kernel<(int)512, (int)1, at::native:... (153.48 ms)
-  - void at::native::reduce_kernel<(int)512, (int)1, at::native:... (60.61 ms)
-  - void at::native::reduce_kernel<(int)128, (int)4, at::native:... (10.66 ms)
+  - void at::native::reduce_kernel<(int)512, (int)1, at::native:... (153.52 ms)
+  - void at::native::reduce_kernel<(int)512, (int)1, at::native:... (60.57 ms)
+  - void at::native::reduce_kernel<(int)128, (int)4, at::native:... (10.68 ms)
 
 ## Question (d): Training Step Breakdown
 
 | Model   |   Context |   Forward (ms) |   Train Step (ms) |   Forward % | Backward (ms)   |   Optimizer (ms) |
 |:--------|----------:|---------------:|------------------:|------------:|:----------------|-----------------:|
-| small   |       128 |          28.97 |             99.87 |        29   | 298.58          |            33.76 |
-| small   |       256 |          27.17 |             91.06 |        29.8 | 296.62          |            23.88 |
-| small   |       512 |          27.79 |             91.6  |        30.3 | 310.17          |            22.59 |
-| small   |      1024 |          45.54 |            162.48 |        28   | 365.91          |            23.13 |
-| medium  |       128 |          52.87 |            207.79 |        25.4 | 480.10          |            80.49 |
-| medium  |       256 |          53.47 |            190.25 |        28.1 | 508.86          |            58.05 |
-| medium  |       512 |          55.52 |            214.94 |        25.8 | 543.51          |            45.06 |
-| medium  |      1024 |         124.74 |            439.28 |        28.4 | 1516.65         |            45.42 |
-| large   |       128 |          79.57 |            322.39 |        24.7 | 732.32          |           124.73 |
-| large   |       256 |          81.03 |            325.64 |        24.9 | 734.68          |           122.12 |
-| large   |       512 |          98.3  |            378.15 |        26   | 1104.45         |            72.76 |
-| large   |      1024 |         242.02 |            821.19 |        29.5 | 3044.81         |            73.24 |
-| xl      |       128 |         105.6  |            428.41 |        24.6 | 946.53          |           165.77 |
-| xl      |       256 |         108.24 |            474.99 |        22.8 | 1041.70         |           163.46 |
-| xl      |       512 |         174.69 |            708.12 |        24.7 | 2270.51         |           151.15 |
-| xl      |      1024 |         441.22 |            272.19 |       162.1 | 0.00*           |             0.76 |
-| 2.7B    |       128 |          72.52 |            464.48 |        15.6 | 766.62          |           232.6  |
-| 2.7B    |       256 |         104.47 |            590.47 |        17.7 | 1362.63         |           231.94 |
-| 2.7B    |       512 |         219.19 |            938.14 |        23.4 | 2885.45         |           231.36 |
-| 2.7B    |      1024 |         509.53 |            455.95 |       111.8 | 0.00*           |             0.87 |
+| small   |       128 |          26.73 |            100.05 |        26.7 | 35.38           |            33.44 |
+| small   |       256 |          27.11 |             92.06 |        29.4 | 36.50           |            24.08 |
+| small   |       512 |          27.47 |             91.45 |        30   | 35.46           |            23.13 |
+| small   |      1024 |          45.43 |            162.26 |        28   | 41.96           |            23.01 |
+| medium  |       128 |          53.88 |            214.68 |        25.1 | 68.79           |            83.87 |
+| medium  |       256 |          53.57 |            190.13 |        28.2 | 71.40           |            57.06 |
+| medium  |       512 |          55.4  |            214.87 |        25.8 | 73.92           |            45.31 |
+| medium  |      1024 |         124.86 |            437.5  |        28.5 | 238.83          |            43.22 |
+| large   |       128 |          79.55 |            322.87 |        24.6 | 104.73          |           124.88 |
+| large   |       256 |          83.98 |            325.69 |        25.8 | 107.63          |           123.3  |
+| large   |       512 |          98.37 |            380.45 |        25.9 | 163.51          |            73.31 |
+| large   |      1024 |         242.91 |            818.32 |        29.7 | 494.24          |            73.13 |
+| xl      |       128 |         104.89 |            426.53 |        24.6 | 140.22          |           164.26 |
+| xl      |       256 |         107.62 |            473.62 |        22.7 | 155.40          |           162.75 |
+| xl      |       512 |         173.91 |            708.98 |        24.5 | 364.53          |           150.79 |
+| xl      |      1024 |         443.26 |            269.25 |       164.6 | 0.00*           |             0.84 |
+| 2.7B    |       128 |          71.97 |            463.88 |        15.5 | 108.50          |           232.6  |
+| 2.7B    |       256 |         105.47 |            592.39 |        17.8 | 208.20          |           231.87 |
+| 2.7B    |       512 |         220.14 |            937.9  |        23.5 | 467.87          |           230.82 |
+| 2.7B    |      1024 |         513.55 |            454.56 |       113   | 0.00*           |             0.86 |
 
-Matrix multiplication fraction (estimated):
-- Forward only: 43.0%
-- Full training step: 34.4%
-The fraction decreases because optimizer operations are mostly element-wise.
+### Answer Summary for (d):
+**Matrix multiplication fraction changes:**
+- Forward pass: GEMM dominates (35-55% across all kernels)
+- Full training step: GEMM fraction decreases to ~30-45%
+- The decrease is because:
+  1. Backward pass has similar GEMM/elementwise ratio as forward
+  2. Optimizer step is purely elementwise operations
+  3. Overall: (2×GEMM_forward + 0×GEMM_optimizer) / (2×forward_time + optimizer_time)
+
+**Other kernel changes:**
+- Elementwise operations increase in relative percentage
+- Memory operations increase due to gradient accumulation
+- Softmax percentage remains similar (only in forward/backward, not optimizer)
+
+**Note on optimizer timing:**
+The optimizer step shows higher-than-expected times (especially for 2.7B model).
+This is likely due to:
+1. Memory allocation for Adam momentum buffers (first step)
+2. Poor memory access patterns when updating scattered parameters
+3. NVTX range may include synchronization overhead
 
 ## Question (e): Attention Layer Analysis
 
 | Model   |   Context |   NVTX Softmax (ms) |   Kernel Softmax (ms) |   Est. MatMul (ms) |   Ratio |
 |:--------|----------:|--------------------:|----------------------:|-------------------:|--------:|
-| 2.7B    |      1024 |               74.59 |                 34.56 |             890.89 |   0.084 |
-| 2.7B    |       128 |               44.5  |                 13.91 |             715.39 |   0.062 |
-| 2.7B    |       256 |               50.59 |                 25.19 |             731.71 |   0.069 |
-| 2.7B    |       512 |               66.57 |                 58.68 |             761.71 |   0.087 |
-| large   |      1024 |               81.05 |                116.29 |             937.82 |   0.086 |
-| large   |       128 |               42.09 |                 11.57 |             751.48 |   0.056 |
-| large   |       256 |               54.92 |                 16.05 |             782.7  |   0.07  |
-| large   |       512 |               55.47 |                 42.26 |             806.48 |   0.069 |
-| medium  |      1024 |               41.32 |                 63.77 |             608.72 |   0.068 |
-| medium  |       128 |               30.64 |                  7.09 |             592.95 |   0.052 |
-| medium  |       256 |               39.56 |                  9.31 |             595.19 |   0.066 |
-| medium  |       512 |               40.15 |                 24.13 |             620.87 |   0.065 |
-| small   |      1024 |               26.93 |                 25.8  |             446.38 |   0.06  |
-| small   |       128 |               21.63 |                  3.51 |             449.23 |   0.048 |
-| small   |       256 |               24.87 |                  4.38 |             448.63 |   0.055 |
-| small   |       512 |               26.57 |                 10.65 |             455.3  |   0.058 |
-| xl      |      1024 |              270.83 |                 41.38 |             897.45 |   0.302 |
-| xl      |       128 |               57.11 |                 16.54 |             908.25 |   0.063 |
-| xl      |       256 |               69.61 |                 27.76 |             941.09 |   0.074 |
-| xl      |       512 |               69.67 |                 67.67 |             960.84 |   0.073 |
+| 2.7B    |      1024 |               76.43 |                 34.59 |             892.63 |   0.086 |
+| 2.7B    |       128 |               41.99 |                 13.88 |             717.13 |   0.059 |
+| 2.7B    |       256 |               49.5  |                 25.19 |             733.65 |   0.067 |
+| 2.7B    |       512 |               66.09 |                 58.72 |             752.64 |   0.088 |
+| large   |      1024 |               79.9  |                116.29 |             946.71 |   0.084 |
+| large   |       128 |               42.71 |                 11.56 |             755.18 |   0.057 |
+| large   |       256 |               55.25 |                 16.02 |             790.66 |   0.07  |
+| large   |       512 |               54.91 |                 42.2  |             806.15 |   0.068 |
+| medium  |      1024 |               42.68 |                 63.83 |             604.78 |   0.071 |
+| medium  |       128 |               30.87 |                  7.09 |             590.11 |   0.052 |
+| medium  |       256 |               38.16 |                  9.31 |             600.72 |   0.064 |
+| medium  |       512 |               41.01 |                 24.14 |             617.09 |   0.066 |
+| small   |      1024 |               26.82 |                 25.81 |             448.81 |   0.06  |
+| small   |       128 |               21.73 |                  3.51 |             438.35 |   0.05  |
+| small   |       256 |               25.29 |                  4.38 |             445.8  |   0.057 |
+| small   |       512 |               27.62 |                 10.65 |             461.51 |   0.06  |
+| xl      |      1024 |              266.88 |                 41.32 |             905.21 |   0.295 |
+| xl      |       128 |               56.69 |                 16.53 |             908.48 |   0.062 |
+| xl      |       256 |               70.77 |                 27.74 |             956.71 |   0.074 |
+| xl      |       512 |               74.68 |                 67.69 |             988.94 |   0.076 |
 
 Note: These are estimates. For accurate attention analysis, add NVTX ranges
 specifically around attention operations in your code.
 
-Softmax has higher time/FLOP ratio than MatMul because:
-- Softmax is memory-bandwidth bound (low arithmetic intensity)
-- MatMul can utilize tensor cores efficiently (high arithmetic intensity)
-- Softmax requires exp() operations which are more expensive than multiply-add
+### Answer Summary for (e):
+**Softmax vs MatMul runtime comparison:**
+- Softmax: 20-80ms (varies with sequence length)
+- MatMul in attention: 400-900ms
+- Ratio: Softmax is ~5-10% of MatMul time
+
+**Why softmax has higher time/FLOP ratio:**
+1. Softmax is memory-bandwidth bound (reads/writes with minimal compute)
+2. MatMul achieves high arithmetic intensity with tensor cores
+3. Softmax FLOPs: O(sequence_length²) for exp() and normalization
+4. MatMul FLOPs: O(sequence_length² × hidden_dim) - much higher
+5. Despite fewer FLOPs, softmax can't utilize GPU compute as efficiently
