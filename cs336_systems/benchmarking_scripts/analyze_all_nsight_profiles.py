@@ -302,6 +302,14 @@ class NsightProfileAnalyzer:
                                 result['model_eval_ms'] = time_ms
                             elif 'loss' in name:
                                 result['loss_ms'] = time_ms
+                            elif 'softmax' in name:
+                                # Store NVTX softmax timing
+                                result['nvtx_softmax_ms'] = time_ms
+                                result['nvtx_softmax_count'] = count
+                            elif 'attn' in name:
+                                # Store attention timing
+                                result['nvtx_attn_ms'] = time_ms
+                                result['nvtx_attn_count'] = count
                     
                         # If names are empty, use heuristics
                         else:
@@ -481,16 +489,48 @@ class NsightProfileAnalyzer:
     
     def generate_top_kernels_table(self):
         """Generate table for question (b)."""
+        # Create a matrix view: rows are models, columns are contexts
         data = []
         
+        for model in self.model_sizes:
+            row = {'Model': model}
+            for ctx in self.context_lengths:
+                key = f"{model}_ctx{ctx}"
+                if key in self.results and 'top_kernel_name' in self.results[key]:
+                    result = self.results[key]
+                    kernel_name = result['top_kernel_name']
+                    
+                    # Extract kernel type
+                    kernel_lower = kernel_name.lower()
+                    if any(p in kernel_lower for p in ['gemm', 'gemv', 'cublas', 'wmma', 'tensor_core']):
+                        kernel_type = "GEMM"
+                    elif any(p in kernel_lower for p in ['elementwise', 'binary', 'unary']):
+                        kernel_type = "Elem"
+                    elif any(p in kernel_lower for p in ['softmax']):
+                        kernel_type = "Soft"
+                    elif any(p in kernel_lower for p in ['reduce', 'reduction']):
+                        kernel_type = "Red"
+                    else:
+                        kernel_type = "Other"
+                    
+                    # Format: type (time_ms)
+                    row[f'ctx{ctx}'] = f"{kernel_type} ({result['top_kernel_time_ms']:.1f}ms)"
+                else:
+                    row[f'ctx{ctx}'] = "N/A"
+            data.append(row)
+        
+        df = pd.DataFrame(data)
+        
+        # Also create a detailed table for reference
+        detailed_data = []
         for key, result in self.results.items():
             if 'top_kernel_name' in result:
                 # Shorten kernel name
                 kernel_name = result['top_kernel_name']
-                if len(kernel_name) > 40:
-                    kernel_name = kernel_name[:37] + "..."
+                if len(kernel_name) > 60:
+                    kernel_name = kernel_name[:57] + "..."
                 
-                data.append({
+                detailed_data.append({
                     'Model': result['model_size'],
                     'Context': result['context_length'],
                     'Top Kernel': kernel_name,
@@ -499,7 +539,9 @@ class NsightProfileAnalyzer:
                     'Avg (μs)': f"{result['top_kernel_avg_us']:.1f}"
                 })
         
-        return pd.DataFrame(data)
+        detailed_df = pd.DataFrame(detailed_data)
+        
+        return df, detailed_df
     
     def generate_kernel_breakdown_table(self):
         """Generate table for question (c) and (d)."""
@@ -656,15 +698,25 @@ class NsightProfileAnalyzer:
         
         # Question (b)
         print("\n## Question (b): Most Time-Consuming CUDA Kernels\n")
-        df = self.generate_top_kernels_table()
-        print(df.head(10).to_markdown(index=False))
+        summary_df, detailed_df = self.generate_top_kernels_table()
+        
+        print("### Summary (Kernel Type by Model/Context):")
+        print(summary_df.to_markdown(index=False))
+        
+        print("\n### Top 5 Most Time-Consuming Kernels (Detailed):")
+        # Sort detailed_df by time
+        detailed_df['Time_float'] = detailed_df['Time (ms)'].astype(float)
+        detailed_df_sorted = detailed_df.sort_values('Time_float', ascending=False).drop('Time_float', axis=1)
+        print(detailed_df_sorted.head(5).to_markdown(index=False))
         
         # Analysis
         gemm_count = sum(1 for _, r in self.results.items() 
                         if 'top_kernel_name' in r and 
                         any(p in r['top_kernel_name'].lower() for p in ['gemm', 'gemv', 'cublas']))
-        print(f"\n{gemm_count}/{len(self.results)} models have GEMM as the top kernel.")
-        print("GEMM kernels dominate because matrix multiplications are the primary computation in transformers.")
+        print(f"\n{gemm_count}/{len(self.results)} configurations have GEMM as the top kernel.")
+        print("Legend: GEMM=Matrix Multiply, Elem=Elementwise, Soft=Softmax, Red=Reduction")
+        print("\nGEMM kernels dominate for larger models/contexts because matrix multiplications")
+        print("are the primary computation in transformers.")
         
         # Question (c)
         print("\n## Question (c): Non-Matrix-Multiply Kernels\n")
