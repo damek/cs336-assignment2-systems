@@ -135,6 +135,16 @@ def create_nsys_analysis_report():
     content = []
     content.append("# Nsight Systems Profiling Analysis Report\n\n")
     
+    # Add kernel glossary
+    content.append("## Kernel Type Glossary\n\n")
+    content.append("- **cutlass::Kernel2**: Matrix multiplication (GEMM) operations\n")
+    content.append("- **elementwise_kernel**: Element-wise operations (add, multiply, activation functions)\n")
+    content.append("- **vectorized_elementwise_kernel**: Optimized element-wise operations\n")
+    content.append("- **reduce_kernel**: Reduction operations (sum, mean, max)\n")
+    content.append("- **sigmoid_kernel**: Sigmoid activation function\n")
+    content.append("- **exp_kernel**: Exponential function\n")
+    content.append("- **softmax**: Softmax normalization\n\n")
+    
     # Question (a)
     content.append("## (a) What is the total time spent on your forward pass? Does it match what we had measured before with the Python standard library?\n\n")
     content.append("**Deliverable:** A 1-2 sentence response.\n\n")
@@ -190,7 +200,7 @@ def create_nsys_analysis_report():
     if top5_forward_df is not None:
         content.append("### Top 5 CUDA Kernels in Forward Pass by Model Configuration\n\n")
         content.append(top5_forward_df.to_markdown(index=False))
-        content.append("\n\n**Answer:** [TO BE FILLED: Identify non-matrix multiply kernels from the top 5]\n\n")
+        content.append("\n\n")
     
     content.append("## (d) Profile running one complete training step with your implementation of AdamW. How does the fraction of time spent on matrix multiplication change, compared to doing inference (forward pass only)? How about other kernels?\n\n")
     content.append("**Deliverable:** A 1-2 sentence response.\n\n")
