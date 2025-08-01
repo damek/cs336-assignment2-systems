@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-NSYS_DIR="${1:-../outputs/nsys}"
+NSYS_DIR=$(realpath "${1:-../outputs/nsys}")
 
 echo "Nsight Profile Analysis Helper"
 echo "=============================="
