@@ -23,7 +23,7 @@ if [ ! -d "$NSYS_DIR" ]; then
 fi
 
 # Find .nsys files
-NSYS_FILES=$(find "$NSYS_DIR" -name "*.nsys" | head -5)
+NSYS_FILES=$(find "$NSYS_DIR" -name "*.nsys-rep" | head -5)
 if [ -z "$NSYS_FILES" ]; then
     echo "ERROR: No .nsys files found in $NSYS_DIR"
     exit 1
