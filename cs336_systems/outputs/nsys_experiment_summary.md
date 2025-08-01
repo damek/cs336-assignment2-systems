@@ -18,3 +18,7 @@ The question asks:
 > What is the total time spent on your forward pass? Does it match what we had measured before with the Python standard library?
 
 First, the csv file is contained in [here](csv/2025-07-28_table1.1.2.csv)
+
+ctx 128, 256, 512, 1024
+2.7B
+71.903 ms
