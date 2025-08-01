@@ -373,6 +373,7 @@ class TransformerBlock(nn.Module):
             d_model=d_model,
             num_heads=num_heads,
             positional_encoder=positional_encoder,
+            nvtx=self.nvtx,
         )
         self.ffn = SwiGLU(d_model=d_model, d_ff=d_ff)
         self.ln1 = RMSNorm(d_model)
@@ -418,6 +419,7 @@ def scaled_dot_product_attention(
     K: Float[Tensor, " ... keys    d_k"],
     V: Float[Tensor, " ... keys    d_v"],
     mask: Bool[Tensor, " ... queries keys"] | None = None,
+    nvtx : Bool = False,
 ) -> Float[Tensor, " ... queries d_v"]:
     """Scaled dot-product attention.
 
@@ -441,11 +443,14 @@ def scaled_dot_product_attention(
     attention_scores = einsum(Q, K, "... query d_k, ... key d_k -> ... query key") / math.sqrt(d_k)
 
     if mask is not None:
-        attention_scores = torch.where(mask, attention_scores, float("-inf"))
+        with maybe_range("Computing attention scores", nvtx):
+            attention_scores = torch.where(mask, attention_scores, float("-inf"))
 
-    attention_weights = softmax(attention_scores, dim=-1)  # Softmax over the key dimension
-
-    return einsum(attention_weights, V, "... query key, ... key d_v ->  ... query d_v")
+    with maybe_range("softmax", nvtx):
+        attention_weights = softmax(attention_scores, dim=-1)  # Softmax over the key dimension
+    with maybe_range("final_matmul", nvtx):
+        X = einsum(attention_weights, V, "... query key, ... key d_v ->  ... query d_v")
+    return X
 
 
 class CausalMultiHeadSelfAttention(nn.Module):
@@ -474,12 +479,13 @@ class CausalMultiHeadSelfAttention(nn.Module):
         d_model: int,
         num_heads: int,
         positional_encoder: RotaryEmbedding,
+        nvtx : Bool = False,
     ):
         super().__init__()
         assert d_model % num_heads == 0
         self.d_model = d_model
         self.num_heads = num_heads
-
+        self.nvtx = nvtx
         self.d_k = d_model // num_heads
         self.d_v = self.d_k
 
@@ -529,7 +535,8 @@ class CausalMultiHeadSelfAttention(nn.Module):
         causal_mask = qi >= kj  # (query, key)
 
         # Shape: (..., num_heads, sequence_length, d_k)
-        attn_output = scaled_dot_product_attention(K=K, Q=Q, V=V, mask=causal_mask)
+     
+        attn_output = scaled_dot_product_attention(K=K, Q=Q, V=V, mask=causal_mask, nvtx=self.nvtx)
 
         # Concatenate the attention output from all heads.
         # (..., sequence_length, num_heads * d_v).
