@@ -52,8 +52,8 @@ def extract_forward_pass_timings():
     # Return the dataframe without saving or printing
     return df
 
-def extract_forward_pass_kernels():
-    """Extract CUDA kernels within forward pass from nsys reports."""
+def extract_kernels_by_nvtx_range(nvtx_range_name):
+    """Extract CUDA kernels within a specific NVTX range from nsys reports."""
     
     # Get all nsys report files
     nsys_dir = Path("../outputs/nsys")
@@ -76,14 +76,14 @@ def extract_forward_pass_kernels():
         
         # Parse output
         lines = result.stdout.splitlines()
-        in_forward_pass = False
+        in_target_range = False
         
         for line in lines:
-            # Check if we're in the forward_pass section
-            if ":forward_pass" in line and "PushPop" in line:
-                in_forward_pass = True
+            # Check if we're in the target NVTX range section
+            if f":{nvtx_range_name}" in line and "PushPop" in line:
+                in_target_range = True
                 # Parse the kernel line
-                # Format: :forward_pass PushPop start end count calls duration avg med min max stddev name
+                # Format: :nvtx_range PushPop start end count calls duration avg med min max stddev name
                 parts = line.split(None, 11)  # Split into max 12 parts
                 if len(parts) >= 12:
                     try:
@@ -97,12 +97,11 @@ def extract_forward_pass_kernels():
                         all_kernel_data.append(kernel_data)
                     except (ValueError, IndexError):
                         continue
-            elif in_forward_pass and line.strip() and not line.startswith(' :'):
+            elif in_target_range and line.strip() and not line.startswith(' :'):
                 # We've moved to a different NVTX range
-                in_forward_pass = False
+                in_target_range = False
     
     if not all_kernel_data:
-        print("No forward_pass kernel data found")
         return None, None
     
     # Create DataFrame
@@ -147,21 +146,39 @@ def create_nsys_analysis_report():
         content.append("\n\n**Answer:** [TO BE FILLED: Compare these timings with Python standard library measurements]\n\n")
     
     # Question (b)
-    content.append("## (b) What CUDA kernel takes the most cumulative GPU time during the forward pass? How many times is this kernel invoked during a single forward pass of your model?\n\n")
+    content.append("## (b) What CUDA kernel takes the most cumulative GPU time during the forward pass? How many times is this kernel invoked during a single forward pass of your model? Is it the same kernel that takes the most runtime when you do both forward and backward passes?\n\n")
     content.append("**Deliverable:** A 1-2 sentence response.\n\n")
     
-    # Extract kernel data
-    top_kernels_df, all_kernels_df = extract_forward_pass_kernels()
-    if top_kernels_df is not None:
+    # Extract kernel data for forward pass
+    forward_top_kernels_df, forward_all_kernels_df = extract_kernels_by_nvtx_range("forward_pass")
+    backward_top_kernels_df, backward_all_kernels_df = extract_kernels_by_nvtx_range("backward")
+    
+    if forward_top_kernels_df is not None:
         content.append("### Top CUDA Kernels in Forward Pass by Model Configuration\n\n")
-        content.append(top_kernels_df.to_markdown(index=False))
+        content.append(forward_top_kernels_df.to_markdown(index=False))
         content.append("\n\n")
         
-        # Also show overall top kernel
-        if all_kernels_df is not None:
-            top_overall = all_kernels_df.nlargest(1, 'duration_ns').iloc[0]
-            content.append(f"**Answer:** The CUDA kernel that takes the most cumulative GPU time is `{top_overall['kernel_name'][:80]}...`, ")
-            content.append(f"invoked {top_overall['count']} times during a single forward pass.\n\n")
+        # Also show overall top kernel for forward pass
+        if forward_all_kernels_df is not None:
+            forward_top_overall = forward_all_kernels_df.nlargest(1, 'duration_ns').iloc[0]
+            content.append(f"**Forward Pass Answer:** The CUDA kernel that takes the most cumulative GPU time is `{forward_top_overall['kernel_name'][:80]}...`, ")
+            content.append(f"invoked {forward_top_overall['count']} times during a single forward pass.\n\n")
+    
+    if backward_top_kernels_df is not None:
+        content.append("### Top CUDA Kernels in Backward Pass by Model Configuration\n\n")
+        content.append(backward_top_kernels_df.to_markdown(index=False))
+        content.append("\n\n")
+        
+        # Also show overall top kernel for backward pass
+        if backward_all_kernels_df is not None:
+            backward_top_overall = backward_all_kernels_df.nlargest(1, 'duration_ns').iloc[0]
+            content.append(f"**Backward Pass Answer:** The CUDA kernel that takes the most cumulative GPU time is `{backward_top_overall['kernel_name'][:80]}...`, ")
+            content.append(f"invoked {backward_top_overall['count']} times during a single backward pass.\n\n")
+            
+            # Compare forward and backward
+            if forward_all_kernels_df is not None:
+                same_kernel = forward_top_overall['kernel_name'] == backward_top_overall['kernel_name']
+                content.append(f"**Comparison:** The top kernel is {'the same' if same_kernel else 'different'} for forward and backward passes.\n\n")
     
     # Placeholder for remaining questions
     content.append("## (c) What other kernels besides matrix multiplies do you see accounting for non-trivial CUDA runtime in the forward pass?\n\n")
