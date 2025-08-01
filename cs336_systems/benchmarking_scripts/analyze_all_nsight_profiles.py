@@ -75,6 +75,10 @@ class NsightProfileAnalyzer:
         
         # Get NVTX timing
         nvtx_csv = self.run_nsys_stats(nsys_file, "nvtx_sum")
+        for rpt in ("nvtx_sum", "nvtx", "nvtx_gpu_proj_sum"):
+            nvtx_csv = self.run_nsys_stats(nsys_file, rpt)
+            if nvtx_csv:
+                break
         nvtx_df = self.parse_csv_output(nvtx_csv)
         
         if nvtx_df is not None:
@@ -101,7 +105,12 @@ class NsightProfileAnalyzer:
                         result['loss_ms'] = row[time_col] / 1e6
         
         # Get CUDA kernels
-        cuda_csv = self.run_nsys_stats(nsys_file, "cuda_gpu_sum")
+        # cuda_csv = self.run_nsys_stats(nsys_file, "cuda_gpu_sum")
+        for rpt in ("cuda_gpu_kern_sum", "cuda_gpu_kernsum",
+            "cuda_gpu_sum", "cuda_gpu_kern_gb_sum"):
+            cuda_csv = self.run_nsys_stats(nsys_file, rpt)
+            if cuda_csv:
+                break
         cuda_df = self.parse_csv_output(cuda_csv)
         
         if cuda_df is not None:
