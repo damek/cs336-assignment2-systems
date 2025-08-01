@@ -5,11 +5,8 @@
 uv run analyze_all_nsight_profiles.py ../outputs/nsys/ --debug
 ```
 
-## Analysis
+## COMPREHENSIVE NSIGHT PROFILING ANALYSIS
 
-================================================================================
-COMPREHENSIVE NSIGHT PROFILING ANALYSIS
-================================================================================
 
 Analyzed 20 profile files:
 
