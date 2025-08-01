@@ -78,7 +78,7 @@ def extract_attention_breakdown():
         lines = result.stdout.splitlines()
         
         softmax_time_ns = 0
-        compute_attn_time_ns = 0
+        matmul_time_ns = 0
         
         for line in lines:
             # Look for softmax within attention
@@ -90,21 +90,21 @@ def extract_attention_breakdown():
                     except (ValueError, IndexError):
                         continue
             
-            # Look for compute attention scores (matrix multiply)
-            elif ":Computing attention scores" in line and "PushPop" in line:
+            # Look for matrix multiply operations in attention
+            elif (":attn_scores" in line or ":final_matmul" in line or ":output_proj" in line) and "PushPop" in line:
                 parts = line.split(None, 11)
                 if len(parts) >= 12:
                     try:
-                        compute_attn_time_ns += int(parts[6])
+                        matmul_time_ns += int(parts[6])
                     except (ValueError, IndexError):
                         continue
         
-        if softmax_time_ns > 0 or compute_attn_time_ns > 0:
+        if softmax_time_ns > 0 or matmul_time_ns > 0:
             attention_data.append({
                 'file': f.stem,
                 'softmax_ms': softmax_time_ns / 1_000_000,
-                'matmul_ms': compute_attn_time_ns / 1_000_000,
-                'softmax_to_matmul_ratio': softmax_time_ns / compute_attn_time_ns if compute_attn_time_ns > 0 else 0
+                'matmul_ms': matmul_time_ns / 1_000_000,
+                'softmax_to_matmul_ratio': softmax_time_ns / matmul_time_ns if matmul_time_ns > 0 else 0
             })
     
     if not attention_data:
