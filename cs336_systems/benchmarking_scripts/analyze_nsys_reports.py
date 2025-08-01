@@ -52,7 +52,7 @@ def extract_forward_pass_timings():
     # Return the dataframe without saving or printing
     return df
 
-def extract_kernels_by_nvtx_range(nvtx_range_name):
+def extract_kernels_by_nvtx_range(nvtx_range_name, top_n=1):
     """Extract CUDA kernels within a specific NVTX range from nsys reports."""
     
     # Get all nsys report files
@@ -111,16 +111,17 @@ def extract_kernels_by_nvtx_range(nvtx_range_name):
     results = []
     for file in df['file'].unique():
         file_df = df[df['file'] == file]
-        # Sort by total duration and get top kernel
-        top_kernel = file_df.nlargest(1, 'duration_ns').iloc[0]
+        # Sort by total duration and get top N kernels
+        top_kernels = file_df.nlargest(top_n, 'duration_ns')
         
-        results.append({
-            'file': file,
-            'top_kernel': top_kernel['kernel_name'][:80] + '...' if len(top_kernel['kernel_name']) > 80 else top_kernel['kernel_name'],
-            'count': top_kernel['count'],
-            'total_time_ms': top_kernel['duration_ns'] / 1_000_000,
-            'avg_time_us': top_kernel['avg_ns'] / 1000
-        })
+        for idx, kernel in top_kernels.iterrows():
+            results.append({
+                'file': file,
+                'top_kernel': kernel['kernel_name'][:80] + '...' if len(kernel['kernel_name']) > 80 else kernel['kernel_name'],
+                'count': kernel['count'],
+                'total_time_ms': kernel['duration_ns'] / 1_000_000,
+                'avg_time_us': kernel['avg_ns'] / 1000
+            })
     
     results_df = pd.DataFrame(results)
     return results_df, df
@@ -180,10 +181,16 @@ def create_nsys_analysis_report():
                 same_kernel = forward_top_overall['kernel_name'] == backward_top_overall['kernel_name']
                 content.append(f"**Comparison:** The top kernel is {'the same' if same_kernel else 'different'} for forward and backward passes.\n\n")
     
-    # Placeholder for remaining questions
+    # Question (c)
     content.append("## (c) What other kernels besides matrix multiplies do you see accounting for non-trivial CUDA runtime in the forward pass?\n\n")
     content.append("**Deliverable:** A 1-2 sentence response.\n\n")
-    content.append("**Answer:** [TO BE IMPLEMENTED]\n\n")
+    
+    # Get top 5 kernels for forward pass
+    top5_forward_df, _ = extract_kernels_by_nvtx_range("forward_pass", top_n=5)
+    if top5_forward_df is not None:
+        content.append("### Top 5 CUDA Kernels in Forward Pass by Model Configuration\n\n")
+        content.append(top5_forward_df.to_markdown(index=False))
+        content.append("\n\n**Answer:** [TO BE FILLED: Identify non-matrix multiply kernels from the top 5]\n\n")
     
     content.append("## (d) Profile running one complete training step with your implementation of AdamW. How does the fraction of time spent on matrix multiplication change, compared to doing inference (forward pass only)? How about other kernels?\n\n")
     content.append("**Deliverable:** A 1-2 sentence response.\n\n")
