@@ -8,6 +8,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+/cs336_systems/outputs/nsys/
 # C extensions
 *.so
 
