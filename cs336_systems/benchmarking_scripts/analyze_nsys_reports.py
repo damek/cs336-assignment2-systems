@@ -308,6 +308,16 @@ def create_nsys_analysis_report(csv_path=None):
     content.append("uv run analyze_nsys_reports.py --csv ../outputs/csv/2025-07-28_table1.1.2.csv\n")
     content.append("```\n\n")
     
+    # Add model specifications table
+    content.append("## Model Specifications\n\n")
+    content.append("| Size | d_model | d_ff | num_layers | num_heads |\n")
+    content.append("|------|---------|------|------------|----------|\n")
+    content.append("| small | 768 | 3072 | 12 | 12 |\n")
+    content.append("| medium | 1024 | 4096 | 24 | 16 |\n")
+    content.append("| large | 1280 | 5120 | 36 | 20 |\n")
+    content.append("| xl | 1600 | 6400 | 48 | 25 |\n")
+    content.append("| 2.7B | 2560 | 10240 | 32 | 32 |\n\n")
+    
     # Add kernel glossary
     content.append("## Kernel Type Glossary\n\n")
     content.append("- **cutlass::Kernel2**: Matrix multiplication (GEMM) operations\n")
