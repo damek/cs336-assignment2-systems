@@ -375,11 +375,15 @@ def create_nsys_analysis_report():
         # Add theoretical FLOP ratio information
         content.append("**Theoretical FLOP Analysis:**\n")
         content.append("- **Attention matrix multiplies (per layer):**\n")
-        content.append("  - Q*K^T: 2 * seq_len * seq_len * d_head FLOPs\n")
-        content.append("  - Softmax(scores) * V: 2 * seq_len * seq_len * d_head FLOPs\n")
+        content.append("  - Q*K^T: 2 * n_heads * seq_len * seq_len * d_head FLOPs\n")
+        content.append("  - Softmax(scores) * V: 2 * n_heads * seq_len * seq_len * d_head FLOPs\n")
         content.append("  - Output projection: 2 * seq_len * d_model * d_model FLOPs\n")
-        content.append("- **Softmax (per layer):** seq_len * seq_len FLOPs (for exp and normalization)\n\n")
-        content.append("**FLOP Ratio:** For typical transformers, matrix multiplies dominate with O(seq_len² * d_model) vs softmax's O(seq_len²)\n\n")
+        content.append("  - **Total matmul FLOPs:** 4 * n_heads * seq_len² * d_head + 2 * seq_len * d_model²\n")
+        content.append("- **Softmax (per layer):** n_heads * seq_len * seq_len FLOPs (for exp and normalization)\n")
+        content.append("  - **Total softmax FLOPs:** n_heads * seq_len²\n\n")
+        content.append("**FLOP Ratio (matmul/softmax):** (4 * n_heads * seq_len² * d_head + 2 * seq_len * d_model²) / (n_heads * seq_len²)\n")
+        content.append("= 4 * d_head + 2 * d_model² / (n_heads * seq_len)\n")
+        content.append("≈ 4 * d_head (for large seq_len, since d_model = n_heads * d_head)\n\n")
     
     # Join all content and write to file
     full_content = ''.join(content)
