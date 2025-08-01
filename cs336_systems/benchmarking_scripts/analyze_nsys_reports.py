@@ -91,7 +91,7 @@ def extract_attention_breakdown():
                         continue
             
             # Look for compute attention scores (matrix multiply)
-            elif "Compute attention scores" in line and "PushPop" in line:
+            elif ":Computing attention scores" in line and "PushPop" in line:
                 parts = line.split(None, 11)
                 if len(parts) >= 12:
                     try:
