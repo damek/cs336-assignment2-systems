@@ -384,6 +384,7 @@ def create_nsys_analysis_report():
         content.append("**FLOP Ratio (matmul/softmax):** (4 * n_heads * seq_len² * d_head + 2 * seq_len * d_model²) / (n_heads * seq_len²)\n")
         content.append("= 4 * d_head + 2 * d_model² / (n_heads * seq_len)\n")
         content.append("≈ 4 * d_head (for large seq_len, since d_model = n_heads * d_head)\n\n")
+        content.append("**Note:** Softmax is memory-bandwidth bound (not compute bound) and creates large intermediate tensors, making it much slower than FLOP count suggests.\n\n")
     
     # Join all content and write to file
     full_content = ''.join(content)
