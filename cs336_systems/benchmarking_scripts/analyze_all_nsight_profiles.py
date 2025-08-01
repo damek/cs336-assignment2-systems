@@ -33,6 +33,50 @@ class NsightProfileAnalyzer:
                 print(f"Error analyzing {file_path} with report {report_type}: {e.stderr}")
             return None
     
+    def get_nvtx_ranges_text(self, nsys_file):
+        """Try to get NVTX ranges with names using text output."""
+        try:
+            # Try text output which sometimes preserves names better
+            cmd = ["nsys", "stats", "--report", "nvtx_sum", "--format", "table", str(nsys_file)]
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            
+            if self.debug:
+                print("  Trying text format output for NVTX ranges...")
+                
+            # Parse text table - look for lines with timing data
+            lines = result.stdout.strip().split('\n')
+            ranges = []
+            
+            for line in lines:
+                # Skip header lines and separators
+                if 'Time' in line or '---' in line or not line.strip():
+                    continue
+                    
+                # Try to extract name and time from each line
+                # Text format might be: "name   count   time   avg" etc
+                parts = line.split()
+                if len(parts) >= 3:
+                    # Heuristic: if first part doesn't look like a number, it's probably the name
+                    if not parts[0].replace('.', '').replace('%', '').isdigit():
+                        name = parts[0]
+                        # Find the time value (usually in nanoseconds)
+                        for part in parts[1:]:
+                            if part.replace(',', '').isdigit():
+                                ranges.append({'name': name, 'time_text': part})
+                                break
+                                
+            if ranges and self.debug:
+                print(f"  Found {len(ranges)} ranges in text output")
+                for r in ranges[:3]:
+                    print(f"    {r}")
+                    
+            return ranges if ranges else None
+            
+        except Exception as e:
+            if self.debug:
+                print(f"  Text format failed: {e}")
+            return None
+    
     def get_nvtx_ranges_sqlite(self, nsys_file):
         """Get NVTX ranges using SQLite export which preserves names better."""
         import tempfile
@@ -78,7 +122,7 @@ class NsightProfileAnalyzer:
             
         except Exception as e:
             if self.debug:
-                print(f"SQLite export failed: {e}")
+                print(f"  SQLite export failed: {e}")
             return None
         finally:
             # Clean up
@@ -128,15 +172,20 @@ class NsightProfileAnalyzer:
             'file': nsys_file.name
         }
         
-        # Try SQLite export first for better NVTX name preservation
-        sqlite_ranges = self.get_nvtx_ranges_sqlite(nsys_file)
+        # Try text format first
+        text_ranges = self.get_nvtx_ranges_text(nsys_file)
         
-        if sqlite_ranges:
+        # Then try SQLite export for better NVTX name preservation
+        sqlite_ranges = self.get_nvtx_ranges_sqlite(nsys_file) if not text_ranges else None
+        
+        if sqlite_ranges or text_ranges:
+            ranges_to_use = sqlite_ranges if sqlite_ranges else text_ranges
             if self.debug:
-                print(f"  Using SQLite export - found {len(sqlite_ranges)} NVTX ranges with names")
+                source = "SQLite" if sqlite_ranges else "text"
+                print(f"  Using {source} export - found {len(ranges_to_use)} NVTX ranges with names")
             
-            # Process SQLite results
-            for range_data in sqlite_ranges:
+            # Process results
+            for range_data in ranges_to_use:
                 name = range_data['name'].lower()
                 time_ms = range_data['total_time_ns'] / 1e6
                 avg_ms = range_data['avg_time_ns'] / 1e6
@@ -201,14 +250,22 @@ class NsightProfileAnalyzer:
                 
                     # Process each row
                     for idx, row in nvtx_df.iterrows():
-                        name = str(row.get('Name', '')).lower().strip()
-                        original_name = str(row.get('Name', '')).strip()
+                        # Try different columns for the name
+                        name_candidates = ['Name', 'Range', 'NVTX Range', 'Event']
+                        original_name = ''
+                        for candidate in name_candidates:
+                            if candidate in row and pd.notna(row[candidate]):
+                                original_name = str(row[candidate]).strip()
+                                if original_name and original_name != '':
+                                    break
+                        
+                        name = original_name.lower()
                         time_ms = row[time_col] / 1e6
                         count = row.get(count_col, 1) if count_col else 1
                         
                         # Debug: print NVTX range info
                         if self.debug and idx < 10:
-                            print(f"  NVTX range #{idx}: name='{original_name}' time={time_ms:.2f}ms count={count}")
+                            print(f"  NVTX range #{idx}: name='{original_name}' (from Range='{row.get('Range', '')}') time={time_ms:.2f}ms count={count}")
                     
                         # If names are present, use them
                         if original_name and not original_name.isspace():
@@ -228,31 +285,47 @@ class NsightProfileAnalyzer:
                     
                         # If names are empty, use heuristics
                         else:
-                            # The largest time is usually the full iteration or train_step
-                            if time_ms == times_sorted[0]:
-                                # If it has count=1, it's likely train_step
-                                if count == 1:
+                            # When nvtx is enabled: warmup=5, benchmark=1, train=1
+                            # So count=7 likely means all forward passes (5+1+1)
+                            # count=1 with large time is likely train_step
+                            
+                            if count == 1 and time_ms > times_sorted[-1] * 2:
+                                # Single execution with large time - likely train_step
+                                result['train_step_ms'] = time_ms
+                                if self.debug:
+                                    print(f"    -> Identified as train_step (count=1, large time)")
+                            
+                            elif count in [6, 7] and 'forward_pass_ms' not in result:
+                                # Count 6-7 likely means all forward passes
+                                # Subtract warmup to get benchmark timing
+                                # With nvtx: 5 warmup + 1 benchmark + 1 in train_step = 7
+                                result['forward_pass_ms'] = time_ms / count  # Average
+                                result['forward_pass_count'] = count
+                                if self.debug:
+                                    print(f"    -> Identified as forward_pass aggregate (count={count})")
+                            
+                            elif count > 10 and 'layer' not in str(result.get('top_kernel_name', '')).lower():
+                                # High count might be per-layer ranges
+                                num_layers = count // 7 if count % 7 == 0 else count // 6
+                                if self.debug:
+                                    print(f"    -> Likely per-layer range (count={count}, ~{num_layers} layers)")
+                            
+                            else:
+                                # Use timing magnitude as fallback
+                                if time_ms == times_sorted[0] and 'train_step_ms' not in result:
                                     result['train_step_ms'] = time_ms
                                     if self.debug:
-                                        print(f"    -> Identified as train_step (largest, count=1)")
-                                else:
-                                    # Multiple counts might be forward passes
-                                    result['forward_pass_ms'] = time_ms / count  # Average per pass
-                                    result['forward_pass_count'] = count
-                                    if self.debug:
-                                        print(f"    -> Identified as forward_pass (largest, count={count})")
-                            
-                            # Second largest might be forward_pass aggregate or backward
-                            elif len(times_sorted) > 1 and abs(time_ms - times_sorted[1]) < 0.01:
-                                if 'forward_pass_ms' not in result:
-                                    result['forward_pass_ms'] = time_ms / count if count > 1 else time_ms
-                                    result['forward_pass_count'] = count
-                                    if self.debug:
-                                        print(f"    -> Identified as forward_pass (2nd largest)")
-                                elif 'backward_ms' not in result:
-                                    result['backward_ms'] = time_ms
-                                    if self.debug:
-                                        print(f"    -> Identified as backward (2nd largest)")
+                                        print(f"    -> Identified as train_step (largest time)")
+                                elif len(times_sorted) > 1 and abs(time_ms - times_sorted[1]) < 0.01:
+                                    if 'forward_pass_ms' not in result:
+                                        result['forward_pass_ms'] = time_ms / count if count > 1 else time_ms
+                                        result['forward_pass_count'] = count
+                                        if self.debug:
+                                            print(f"    -> Identified as forward_pass (2nd largest)")
+                                    elif 'backward_ms' not in result:
+                                        result['backward_ms'] = time_ms
+                                        if self.debug:
+                                            print(f"    -> Identified as backward")
         
         # Get CUDA kernels
         # cuda_csv = self.run_nsys_stats(nsys_file, "cuda_gpu_sum")
@@ -373,12 +446,18 @@ class NsightProfileAnalyzer:
             for ctx in self.context_lengths:
                 key = f"{model}_ctx{ctx}"
                 if key in self.results and 'forward_pass_ms' in self.results[key]:
-                    row[f'ctx{ctx}'] = f"{self.results[key]['forward_pass_ms']:.2f}"
+                    # Round to 2 decimal places
+                    row[f'ctx{ctx}'] = round(self.results[key]['forward_pass_ms'], 2)
                 else:
-                    row[f'ctx{ctx}'] = 'OOM/NA'
+                    row[f'ctx{ctx}'] = None  # Use None instead of string for better handling
             data.append(row)
         
-        return pd.DataFrame(data)
+        df = pd.DataFrame(data)
+        # Format the numeric columns
+        for col in [f'ctx{ctx}' for ctx in self.context_lengths]:
+            df[col] = df[col].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "N/A")
+        
+        return df
     
     def generate_top_kernels_table(self):
         """Generate table for question (b)."""
@@ -427,25 +506,43 @@ class NsightProfileAnalyzer:
         """Generate table for question (d) - training step analysis."""
         data = []
         
-        for key, result in self.results.items():
-            if 'forward_pass_ms' in result and 'train_step_ms' in result:
-                forward = result['forward_pass_ms']
-                train = result['train_step_ms']
-                
+        for model in self.model_sizes:
+            for ctx in self.context_lengths:
+                key = f"{model}_ctx{ctx}"
+                if key not in self.results:
+                    continue
+                    
+                result = self.results[key]
                 row = {
-                    'Model': result['model_size'],
-                    'Context': result['context_length'],
-                    'Forward (ms)': f"{forward:.2f}",
-                    'Train Step (ms)': f"{train:.2f}",
-                    'Forward %': f"{(forward/train)*100:.1f}"
+                    'Model': model,
+                    'Context': ctx,
+                    'Forward (ms)': 'N/A',
+                    'Train Step (ms)': 'N/A',
+                    'Forward %': 'N/A',
+                    'Backward (ms)': 'N/A',
+                    'Optimizer (ms)': 'N/A'
                 }
+                
+                if 'forward_pass_ms' in result:
+                    row['Forward (ms)'] = f"{result['forward_pass_ms']:.2f}"
+                
+                if 'train_step_ms' in result:
+                    row['Train Step (ms)'] = f"{result['train_step_ms']:.2f}"
+                    
+                if 'forward_pass_ms' in result and 'train_step_ms' in result:
+                    forward = result['forward_pass_ms']
+                    train = result['train_step_ms']
+                    row['Forward %'] = f"{(forward/train)*100:.1f}"
                 
                 if 'backward_ms' in result:
                     row['Backward (ms)'] = f"{result['backward_ms']:.2f}"
+                    
                 if 'optimizer_step_ms' in result:
                     row['Optimizer (ms)'] = f"{result['optimizer_step_ms']:.2f}"
                 
-                data.append(row)
+                # Only add row if we have at least forward pass or train step
+                if row['Forward (ms)'] != 'N/A' or row['Train Step (ms)'] != 'N/A':
+                    data.append(row)
         
         return pd.DataFrame(data)
     
