@@ -22,10 +22,10 @@ if [ ! -d "$NSYS_DIR" ]; then
     exit 1
 fi
 
-# Find .nsys files
-NSYS_FILES=$(find "$NSYS_DIR" -name "*.nsys-rep" | head -5)
+# Find .nsys or .nsys-rep files
+NSYS_FILES=$(find "$NSYS_DIR" -name "*.nsys*" | grep -E "\.(nsys|nsys-rep)$" | head -5)
 if [ -z "$NSYS_FILES" ]; then
-    echo "ERROR: No .nsys files found in $NSYS_DIR"
+    echo "ERROR: No .nsys or .nsys-rep files found in $NSYS_DIR"
     exit 1
 fi
 
@@ -33,44 +33,40 @@ echo "Found nsys files:"
 echo "$NSYS_FILES" | head -5
 echo ""
 
-# Create analysis directory
-ANALYSIS_DIR="nsight_analysis_results"
-mkdir -p "$ANALYSIS_DIR"
-cd "$ANALYSIS_DIR"
-
-# Copy Python scripts if they don't exist
-if [ ! -f "analyze_nsight_profiles.py" ]; then
-    echo "Creating analysis scripts..."
-    # You would copy the scripts here or ensure they're in the path
-fi
+# Change to the nsys directory for simpler paths
+cd "$NSYS_DIR" || exit 1
 
 echo "Running analysis..."
 echo ""
 
+# Change to the nsys directory for simpler paths
+cd "$NSYS_DIR" || exit 1
+
 # Analyze one file in detail as an example
 SAMPLE_FILE=$(echo "$NSYS_FILES" | head -1)
-echo "Detailed analysis of: $(basename $SAMPLE_FILE)"
+SAMPLE_BASENAME=$(basename "$SAMPLE_FILE")
+echo "Detailed analysis of: $SAMPLE_BASENAME"
 echo "================================================"
 
 # Question (a): Forward pass timing
 echo ""
 echo "Question (a): Forward Pass Timing"
 echo "---------------------------------"
-nsys stats --report nvtx_sum --format table "$SAMPLE_FILE" 2>/dev/null | grep -E "(forward_pass|Forward)" || echo "No forward_pass NVTX range found"
+nsys stats --report nvtx_sum --format table "$SAMPLE_BASENAME" 2>/dev/null | grep -E "(forward_pass|Forward)" || echo "No forward_pass NVTX range found"
 
 # Question (b): Top CUDA kernels
 echo ""
 echo "Question (b): Most Time-Consuming CUDA Kernels"
 echo "----------------------------------------------"
 echo "Top 5 kernels by total time:"
-nsys stats --report cuda_gpu_sum --format table "$SAMPLE_FILE" 2>/dev/null | head -15 || echo "Could not get CUDA kernel summary"
+nsys stats --report cuda_gpu_sum --format table "$SAMPLE_BASENAME" 2>/dev/null | head -15 || echo "Could not get CUDA kernel summary"
 
 # Question (c): Non-matrix multiply kernels
 echo ""
 echo "Question (c): Kernel Types Analysis"
 echo "-----------------------------------"
 echo "Looking for non-GEMM kernels..."
-nsys stats --report cuda_gpu_sum --format csv "$SAMPLE_FILE" 2>/dev/null | grep -v -i "gemm\|gemv\|cublas" | head -10 || echo "Analysis failed"
+nsys stats --report cuda_gpu_sum --format csv "$SAMPLE_BASENAME" 2>/dev/null | grep -v -i "gemm\|gemv\|cublas" | head -10 || echo "Analysis failed"
 
 # Create a Python analysis script inline
 cat > quick_analysis.py << 'EOF'
@@ -134,7 +130,7 @@ EOF
 # Run the Python analysis
 echo ""
 echo "Running Python analysis..."
-python3 quick_analysis.py "$SAMPLE_FILE"
+python3 quick_analysis.py "$SAMPLE_BASENAME"
 
 # Generate answer template
 echo ""
