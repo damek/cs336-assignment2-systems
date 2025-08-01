@@ -438,12 +438,11 @@ def scaled_dot_product_attention(
         with the output of running your scaled dot product attention
         implementation with the provided key, query, and value tensors.
     """
-
-    d_k = K.shape[-1]
-    attention_scores = einsum(Q, K, "... query d_k, ... key d_k -> ... query key") / math.sqrt(d_k)
+    with maybe_range("attn_scores", nvtx):
+        d_k = K.shape[-1]
+        attention_scores = einsum(Q, K, "... query d_k, ... key d_k -> ... query key") / math.sqrt(d_k)
 
     if mask is not None:
-        with maybe_range("Computing attention scores", nvtx):
             attention_scores = torch.where(mask, attention_scores, float("-inf"))
 
     with maybe_range("softmax", nvtx):
@@ -543,7 +542,8 @@ class CausalMultiHeadSelfAttention(nn.Module):
         attn_output = rearrange(attn_output, "batch heads seq d_v -> batch seq (heads d_v)").contiguous()
 
         # Apply the output projection
-        output = self.output_proj(attn_output)
+        with maybe_range("output_proj", self.nvtx):
+            output = self.output_proj(attn_output)
         return output
 
 def silu(x: torch.Tensor):
