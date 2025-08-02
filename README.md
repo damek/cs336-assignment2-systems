@@ -4,18 +4,32 @@ Currently writing a twitter thread here:
 
 https://x.com/damekdavis/status/1949507725626347825
 
+
+## Problems: 
+
+- End to end profiling with Timeit
+  - Run: [benchmark_table1.1.2.sh](cs336_systems/benchmarking_scripts/benchmark_table1.1.2.sh)
+  - Results: [2025-07-28_table1.1.2.csv](cs336_systems/outputs/csv/2025-07-28_table1.1.2.csv)
+- Nsys profiling
+  - Run the profiles: [profile_nsight.sh](cs336_systems/benchmarking_scripts/profile_nsight.sh)
+  - Analyze the reports: [analyze_nsys_reports.py](cs336_systems/benchmarking_scripts/analyze_nsys_reports.py)
+  - Results: [nsys_analysis_report.md](cs336_systems/outputs/nsys_analysis_report.md)
+
+
 # Getting started with my code
 
-## Running the first benchmarking script: 
 
-```python
+
+## Running the standalone benchmarking script: 
+
+```bash
 uv run benchmarking_script.py --num_layers 12 --num_heads 12 --d_ff 3072 --d_model 76008 --context_length 1024 --rope_theta 10000 --vocab_size 10000 --output_csv "times.csv" --num_warmup 1 --num_benchmark 2
 ```
 
 ## Runai 
 ### Setting up the environment
 Setting up the environment
-```python
+```bash
 runai submit cs336-dev \ -p <user> \  -i nvcr.io/nvidia/pytorch:25.06-py3 \  -g 1 --interactive --attach \  --command -- bash
 git clone https://github.com/damek/cs336-assignment2-systems.git
 pip install uv
@@ -29,7 +43,7 @@ source .venv/bin/activate
 ### Getting files out of the pod
 
 If you've remote logged into the kubernetes server
-```python
+```bash
 # From within the pod, get the podname and the name space
 echo "POD name    : $HOSTNAME"
 cat /var/run/secrets/kubernetes.io/serviceaccount/namespace
