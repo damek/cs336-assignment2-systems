@@ -17,7 +17,7 @@ class ToyModel(nn.Module):
         x = self.fc2(x)
         return x
 
-model = ToyModel(10, 10)
+model = ToyModel(in_features=10, out_features=10)
 x = torch.randn(10, 10)
 model.to("cuda")
 x = x.to("cuda")
@@ -38,7 +38,7 @@ with torch.autocast(device_type="cuda", dtype=dtype):
         if len(list(m.children())) == 0:
             m.register_forward_hook(lambda module, input, output, name=n: print(f"{name}: {output.dtype}")) 
 
-    loss = cross_entropy(logits, torch.randint(0, 10, (10,)))
+    loss = cross_entropy(logits, torch.randint(0, 10, (10,10)))
     print(f"loss.dtype: {loss.dtype}")
 
     loss.backward()
