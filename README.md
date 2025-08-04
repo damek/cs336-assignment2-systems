@@ -17,7 +17,7 @@ https://x.com/damekdavis/status/1949507725626347825
 - Mixed Precision
   - Different types of accumulation 
     - Run code [mixed_precision_accumulation.py](cs336_systems/mixed_precision_accumulation.py)
-    - Results: [mixed_precision_accumulation.md](outputs/mixed_precision_accumulation.md)
+    - Results: [mixed_precision_accumulation.md](cs336_systems/outputs/mixed_precision_accumulation.md)
 
 # Getting started with my code
 
