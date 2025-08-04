@@ -31,13 +31,12 @@ with torch.autocast(device_type="cuda", dtype=dtype):
     print(f"model.fc2.weight.dtype: {model.fc2.weight.dtype}")
     print(f"model.ln.bias.dtype: {model.ln.bias.dtype}")
 
-    logits = model(x)
-    print(f"logits.dtype: {logits.dtype}")
     for n, m in model.named_modules():
         if len(list(m.children())) == 0:
             m.register_forward_hook(lambda module, input, output, name=n: print(f"{name}: {output.dtype}")) 
-
-  
+            
+    logits = model(x)
+    print(f"logits.dtype: {logits.dtype}")
     loss = cross_entropy(logits, torch.randint(0, 10, (10,)).to("cuda"))
     print(f"loss.dtype: {loss.dtype}")
 
