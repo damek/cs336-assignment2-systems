@@ -16,7 +16,6 @@ class ToyModel(nn.Module):
         x = self.ln(x)
         x = self.fc2(x)
         return x
-    
 
 model = ToyModel(10, 10)
 x = torch.randn(10, 10)
