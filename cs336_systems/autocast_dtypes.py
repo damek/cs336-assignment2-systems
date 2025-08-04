@@ -22,7 +22,6 @@ x = torch.randn(10, 10)
 model.to("cuda")
 x = x.to("cuda")
 
-
 dtype : torch.dtype = torch.float16
 
 with torch.autocast(device_type="cuda", dtype=dtype):
