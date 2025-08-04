@@ -40,7 +40,7 @@ with torch.autocast(device_type="cuda", dtype=dtype):
 
     print(logits.shape)
     print(torch.randint(0, 10, (10,10)).shape)
-    loss = cross_entropy(logits, torch.randint(0, 10, (10,10)))
+    loss = cross_entropy(logits, torch.randint(0, 10, (10,10)).to("cuda"))
     print(f"loss.dtype: {loss.dtype}")
 
     loss.backward()
