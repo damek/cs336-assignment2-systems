@@ -14,11 +14,12 @@ https://x.com/damekdavis/status/1949507725626347825
   - Run the profiles: [profile_nsight.sh](cs336_systems/benchmarking_scripts/profile_nsight.sh)
   - Analyze the reports: [analyze_nsys_reports.py](cs336_systems/benchmarking_scripts/analyze_nsys_reports.py)
   - Results: [nsys_analysis_report.md](cs336_systems/outputs/nsys_analysis_report.md)
-
+- Mixed Precision
+  - Different types of accumulation 
+    - Run code [mixed_precision_accumulation.py](cs336_systems/mixed_precision_accumulation.py)
+    - Results: [mixed_precision_accumulation.md](outputs/mixed_precision_accumulation.md)
 
 # Getting started with my code
-
-
 
 ## Running the standalone benchmarking script: 
 
