@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+from cs336_basics.nn_utils import cross_entropy
+
 class ToyModel(nn.Module):
 
     def __init__(self, in_features: int, out_features: int):
@@ -20,7 +22,7 @@ model = ToyModel(10, 10)
 x = torch.randn(10, 10)
 model.to("cuda")
 x = x.to("cuda")
-model.eval()
+
 
 dtype : torch.dtype = torch.float16
 
@@ -31,9 +33,19 @@ with torch.autocast(device_type="cuda", dtype=dtype):
     print(f"model.fc2.weight.dtype: {model.fc2.weight.dtype}")
     print(f"model.ln.bias.dtype: {model.ln.bias.dtype}")
 
-    y = model(x)
+    logits = model(x)
+    print(f"logits.dtype: {logits.dtype}")
     for n, m in model.named_modules():
         if len(list(m.children())) == 0:
             m.register_forward_hook(lambda module, input, output, name=n: print(f"{name}: {output.dtype}")) 
+
+    loss = cross_entropy(logits, torch.randint(0, 10, (10,)))
+    print(f"loss.dtype: {loss.dtype}")
+
+    loss.backward()
+    print(f"model.fc1.weight.grad.dtype: {model.fc1.weight.grad.dtype}")
+    print(f"model.ln.weight.grad.dtype: {model.ln.weight.grad.dtype}")
+    print(f"model.fc2.weight.grad.dtype: {model.fc2.weight.grad.dtype}")
+    print(f"model.ln.bias.grad.dtype: {model.ln.bias.grad.dtype}")
+
     
-    print(f"y.dtype: {y.dtype}")
