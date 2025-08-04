@@ -18,6 +18,9 @@ https://x.com/damekdavis/status/1949507725626347825
   - Different types of accumulation 
     - Run code [mixed_precision_accumulation.py](cs336_systems/mixed_precision_accumulation.py)
     - Results: [mixed_precision_accumulation.md](cs336_systems/outputs/mixed_precision_accumulation.md)
+  - torch.autocast dtypes
+    - Run code [autocast_dtypes.py](cs336_systems/autocast_dtypes.py)
+    - Reults: [autocast_dtypes.md](cs336_systems/outputs/autocast_dtypes.md)
 
 # Getting started with my code
 
