@@ -38,9 +38,8 @@ with torch.autocast(device_type="cuda", dtype=dtype):
         if len(list(m.children())) == 0:
             m.register_forward_hook(lambda module, input, output, name=n: print(f"{name}: {output.dtype}")) 
 
-    print(logits.shape)
-    print(torch.randint(0, 10, (10,10)).shape)
-    loss = cross_entropy(logits, torch.randint(0, 10, (10,10)).to("cuda"))
+  
+    loss = cross_entropy(logits, torch.randint(0, 10, (10,)).to("cuda"))
     print(f"loss.dtype: {loss.dtype}")
 
     loss.backward()
