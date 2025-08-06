@@ -45,3 +45,22 @@ Gradients:
 - model.ln.weight.grad.dtype: torch.float32
 - model.fc2.weight.grad.dtype: torch.float32
 - model.ln.bias.grad.dtype: torch.float32
+
+## Layer norm and bfloat16
+
+> You should have seen that FP16 mixed precision autocasting treats the layer normalization layer differently than the feed-forward layers. What parts of layer normalization are sensitive to mixed precision? If we use BF16 instead of FP16, do we still need to treat layer normalization differently? Why or why not?
+
+Layer norm formula: 
+$$
+y = \frac{x - \mathrm{E}[x]}{ \sqrt{\mathrm{Var}[x] + \epsilon}} * \gamma + \beta
+$$
+Sensitive reductions: Good to accumulate in fp32
+- $\mathrm{E}[x]$
+- $\mathrm{Var}[x]$
+
+Range issues: 
+- Computing square in variance. Will exceed the fp16 max $\pm 65k$ limit.
+- Inverting a small standard deviation could blow up.
+
+Although bf16 is not sensitive to range issues (since range is as high as fp32), it is sensitive to reductions. We should still accumulate in fp32.
+
