@@ -49,7 +49,11 @@ if torch.cuda.is_available():
 random_input = torch.randint(low = 0, high = args.vocab_size, size = (batch_size, args.context_length), device=device)
 random_target = torch.randint(low = 0, high = args.vocab_size, size = (batch_size, args.context_length), device=device)
 model.to(device)
-
+handles = []
+for n, m in model.named_modules():
+    if len(list(m.children())) == 0:
+        handle = m.register_forward_hook(lambda module, input, output, name=n: print(f"- {name}: {output.dtype}")) 
+        handles.append(handle)
 
 def run_section(fn, num_iter):
     timings = torch.zeros(num_iter)
@@ -71,22 +75,22 @@ def run_section(fn, num_iter):
         raise                           
 
 def loss_fn():
-    with maybe_range("model_eval", args.nvtx):
-        logits = model(random_input)
-    with maybe_range("loss", args.nvtx):
-        loss = nn_utils.cross_entropy(logits, random_target)
+    with torch.autocast(device_type="cuda", dtype=dtype, enabled=args.bfloat16):
+        with maybe_range("model_eval", args.nvtx):
+            logits = model(random_input)
+        with maybe_range("loss", args.nvtx):
+            loss = nn_utils.cross_entropy(logits, random_target)
     return loss
 
-with torch.autocast(device_type="cuda", dtype=dtype, enabled=args.bfloat16):
-    def forward_pass():
-        if args.only_forward:
-            with torch.no_grad():
-                loss_fn()
-        else:
-            model.zero_grad()
-            loss = loss_fn()
-            with maybe_range("backward", args.nvtx):
-                loss.backward()
+def forward_pass():
+    if args.only_forward:
+        with torch.no_grad():
+            loss_fn()
+    else:
+        model.zero_grad()
+        loss = loss_fn()
+        with maybe_range("backward", args.nvtx):
+            loss.backward()
 
 # If nvtx we hard code some stuff.
 if args.nvtx:
