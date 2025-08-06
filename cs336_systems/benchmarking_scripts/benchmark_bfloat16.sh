@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-OUT_CSV="../outputs/csv/$(date +%F)_table1.1.2.csv"
+OUT_CSV="../outputs/csv/$(date +%F)_table1.1.2_bfloat.csv"
 mkdir -p "$(dirname "$OUT_CSV")"
 
 sizes=(small medium large xl "2.7B")
