@@ -35,7 +35,7 @@ for i in "${!sizes[@]}"; do
             --d_model     "${d_models[$i]}"\
             --d_ff        "${d_ffs[$i]}"   \
             --context_length "${ctx}"      \
-            ${bfloat16}                    \
+            ${extra_bfloat16}                    \
             ${extra_fwd}                   \
             ${COMMON_STATIC}
       done
