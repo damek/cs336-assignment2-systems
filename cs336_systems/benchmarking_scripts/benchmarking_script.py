@@ -129,6 +129,7 @@ row = {
     "context_length":    args.context_length,
     "batch_size":      args.batch_size,
     "only_forward": args.only_forward,
+    "bfloat16": args.bfloat16,
     "mean_s": None if oom else float(bench_times.mean()),
     "std_s":  None if oom else float(bench_times.std()),
     "oom": oom,
