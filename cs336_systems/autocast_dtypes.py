@@ -34,9 +34,11 @@ def print_dtype(dtype: torch.dtype):
         print(f"- model.ln.bias.dtype: {model.ln.bias.dtype}")
 
         print("Forward Pass:")
+        handles = []
         for n, m in model.named_modules():
             if len(list(m.children())) == 0:
-                m.register_forward_hook(lambda module, input, output, name=n: print(f"- {name}: {output.dtype}")) 
+                handle = m.register_forward_hook(lambda module, input, output, name=n: print(f"- {name}: {output.dtype}")) 
+                handles.append(handle)
 
         logits = model(x)
         print(f"- logits.dtype: {logits.dtype}")
@@ -49,6 +51,9 @@ def print_dtype(dtype: torch.dtype):
         print(f"- model.ln.weight.grad.dtype: {model.ln.weight.grad.dtype}")
         print(f"- model.fc2.weight.grad.dtype: {model.fc2.weight.grad.dtype}")
         print(f"- model.ln.bias.grad.dtype: {model.ln.bias.grad.dtype}")
+
+    for handle in handles:
+        handle.remove()
 
 dtype : torch.dtype = torch.float16
 print_dtype(dtype)

@@ -3,6 +3,7 @@
 uv run cs336_systems/autocast_dtypes.py 
 
 ## dtype: torch.float16
+
 Model:
 - model.fc1.weight.dtype: torch.float32
 - model.ln.weight.dtype: torch.float32
@@ -24,6 +25,7 @@ Gradients:
 - model.ln.bias.grad.dtype: torch.float32
 
 ## dtype: torch.bfloat16
+
 Model:
 - model.fc1.weight.dtype: torch.float32
 - model.ln.weight.dtype: torch.float32
@@ -41,6 +43,7 @@ Forward Pass:
 - fc2: torch.bfloat16
 - logits.dtype: torch.bfloat16
 - loss.dtype: torch.float32
+
 Gradients:
 - model.fc1.weight.grad.dtype: torch.float32
 - model.ln.weight.grad.dtype: torch.float32
