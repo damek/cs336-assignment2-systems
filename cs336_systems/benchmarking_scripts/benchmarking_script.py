@@ -52,6 +52,7 @@ model.to(device)
 handles = []
 
 for n, m in model.named_modules():
+    print("asdfasdf")
     if len(list(m.children())) == 0:
         handle = m.register_forward_hook(lambda module, input, output, name=n: print(f"- {name}: {output.dtype}")) 
         handles.append(handle)
