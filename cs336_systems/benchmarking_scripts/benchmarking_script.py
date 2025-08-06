@@ -21,6 +21,7 @@ p.add_argument("--num_benchmark", type=int, default=10)
 p.add_argument("--only_forward", action='store_true')
 p.add_argument("--batch_size", type=int, default=4)
 p.add_argument("--nvtx", action='store_true')
+p.add_argument("--bfloat16", action='store_true')
 
 
 
@@ -38,15 +39,15 @@ model = models.BasicsTransformerLM(
         nvtx = args.nvtx,
         )
 opt = optimizer.AdamW(model.parameters())
+dtype = torch.bfloat16 if args.bfloat16 else torch.float32
 
 # Generate random data
 # Int[Tensor, " ... sequence_length"]
 batch_size = 4
-device = "cpu"
 if torch.cuda.is_available():
     device = "cuda"
-random_input = torch.randint(low = 0, high = args.vocab_size, size = (batch_size, args.context_length), device=device)
-random_target = torch.randint(low = 0, high = args.vocab_size, size = (batch_size, args.context_length), device=device)
+random_input = torch.randint(low = 0, high = args.vocab_size, size = (batch_size, args.context_length), device=device, dtype=dtype)
+random_target = torch.randint(low = 0, high = args.vocab_size, size = (batch_size, args.context_length), device=device, dtype=dtype)
 model.to(device)
 
 
@@ -76,15 +77,16 @@ def loss_fn():
         loss = nn_utils.cross_entropy(logits, random_target)
     return loss
 
-def forward_pass():
-    if args.only_forward:
-        with torch.no_grad():
-            loss_fn()
-    else:
-        model.zero_grad()
-        loss = loss_fn()
-        with maybe_range("backward", args.nvtx):
-            loss.backward()
+with torch.autocast(device_type="cuda", dtype=dtype, enabled=args.bfloat16):
+    def forward_pass():
+        if args.only_forward:
+            with torch.no_grad():
+                loss_fn()
+        else:
+            model.zero_grad()
+            loss = loss_fn()
+            with maybe_range("backward", args.nvtx):
+                loss.backward()
 
 # If nvtx we hard code some stuff.
 if args.nvtx:
