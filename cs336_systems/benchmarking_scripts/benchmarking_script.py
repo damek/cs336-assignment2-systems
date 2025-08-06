@@ -51,12 +51,10 @@ random_target = torch.randint(low = 0, high = args.vocab_size, size = (batch_siz
 model.to(device)
 handles = []
 
-for n, m in model.named_modules():
-    print("asdfasdf")
-    if len(list(m.children())) == 0:
-        handle = m.register_forward_hook(lambda module, input, output, name=n: print(f"- {name}: {output.dtype}")) 
-        handles.append(handle)
-    print("n,", n)
+# for n, m in model.named_modules():
+#     if len(list(m.children())) == 0:
+#         handle = m.register_forward_hook(lambda module, input, output, name=n: print(f"- {name}: {output.dtype}")) 
+#         handles.append(handle)
 
 def run_section(fn, num_iter):
     timings = torch.zeros(num_iter)
