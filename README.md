@@ -21,6 +21,9 @@ https://x.com/damekdavis/status/1949507725626347825
   - torch.autocast dtypes
     - Run code [autocast_dtypes.py](cs336_systems/autocast_dtypes.py)
     - Reults: [autocast_dtypes.md](cs336_systems/outputs/autocast_dtypes.md)
+  - Benchmarking time bfloat16 vs fp32 via autocast
+    - Run code [benchmark_bfloat16.sh](cs336_systems/benchmarking_scripts/benchmark_bfloat16.sh)
+    - Results: [2025-08-06_table1.1.2_bfloat.csv](cs336_systems/outputs/csv/2025-08-06_table1.1.2_bfloat.csv)
 
 # Getting started with my code
 
