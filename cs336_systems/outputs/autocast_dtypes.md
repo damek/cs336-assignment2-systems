@@ -34,12 +34,8 @@ Model:
 
 Forward Pass:
 - fc1: torch.bfloat16
-- fc1: torch.bfloat16
-- relu: torch.bfloat16
 - relu: torch.bfloat16
 - ln: torch.float32
-- ln: torch.float32
-- fc2: torch.bfloat16
 - fc2: torch.bfloat16
 - logits.dtype: torch.bfloat16
 - loss.dtype: torch.float32
