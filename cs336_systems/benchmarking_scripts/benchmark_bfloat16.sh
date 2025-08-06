@@ -26,7 +26,7 @@ for i in "${!sizes[@]}"; do
       [[ "$fwd_only" == "yes" ]] && extra_fwd="--only_forward" || extra_fwd=""
 
       for bfloat16 in "no" "yes"; do
-        [[ "$bloat16" == "yes" ]] && extra_bfloat16="--only_forward" || extra_bfloat16=""
+        [[ "$bfloat16" == "yes" ]] && extra_bfloat16="--bfloat16" || extra_bfloat16=""
         echo "--- ctx=${ctx}  forward=${fwd_only}  bfloat16=${bfloat16}"
 
         python benchmarking_script.py \
