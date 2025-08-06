@@ -120,6 +120,8 @@ with maybe_range("forward_pass", args.nvtx):
     print("Running forward pass...")
     if not args.memory or (args.memory and args.only_forward):
         bench_times, bench_oom = run_section(forward_pass, args.num_benchmark)
+    else: 
+        print("Skipping forward pass")
 
 if args.nvtx or (args.memory and not args.only_forward):
     print("Running train step...")
@@ -128,6 +130,8 @@ if args.nvtx or (args.memory and not args.only_forward):
         bench_times, bench_oom = run_section(forward_pass, args.num_benchmark)
         with maybe_range("optimizer_step", args.nvtx):
             opt.step()
+else: 
+    print("Skipping train step")
 
 if args.memory:
     print(f"Dumping memory snapshot for run num_layers_{args.num_layers}_num_heads_{args.num_heads}_d_model_{args.d_model}_d_ff_{args.d_ff}_context_length_{args.context_length}_batch_size_{args.batch_size}_only_forward_{args.only_forward}_bfloat16_{args.bfloat16}")
