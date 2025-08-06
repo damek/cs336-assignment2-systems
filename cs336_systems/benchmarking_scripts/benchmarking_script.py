@@ -131,7 +131,7 @@ if args.nvtx or (args.memory and not args.only_forward):
 
 if args.memory:
     os.makedirs("outputs/memory", exist_ok=True)
-    torch.cuda.memory._dump_snapshot("outputs/memory/memory_snapshot.pickle")
+    torch.cuda.memory._dump_snapshot(f"outputs/memory/memory_snapshot_{args.num_layers}_{args.num_heads}_{args.d_model}_{args.d_ff}_{args.context_length}_{args.batch_size}_{args.only_forward}_{args.bfloat16}.pickle")
     torch.cuda.memory._record_memory_history(enabled=False)
 
 oom = warmup_oom or bench_oom
