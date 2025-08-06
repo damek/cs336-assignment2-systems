@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-OUT_CSV="../outputs/csv/$(date +%F)_table1.1.2_memory.csv"
-mkdir -p "$(dirname "$OUT_CSV")"
+# OUT_CSV="../outputs/csv/$(date +%F)_table1.1.2_memory.csv"
+# mkdir -p "$(dirname "$OUT_CSV")"
 
 sizes=("2.7B")
 d_models=(2560)
@@ -13,9 +13,9 @@ heads=(32)
 contexts=(128 256 512)
 
 COMMON_STATIC="--vocab_size 10000 --rope_theta 10000 --batch_size 4 \
-               --num_benchmark 1 --output_csv ${OUT_CSV} --num_warmup 5 --memory"
+               --num_benchmark 1 --num_warmup 5 --memory"
 
-echo "timestamp,num_layers,num_heads,d_model,d_ff,context_length,batch_size,only_forward,bfloat16,mean_s,std_s,oom" > "${OUT_CSV}"
+# echo "timestamp,num_layers,num_heads,d_model,d_ff,context_length,batch_size,only_forward,bfloat16,mean_s,std_s,oom" > "${OUT_CSV}"
 
 for i in "${!sizes[@]}"; do
   SIZE=${sizes[$i]}
@@ -43,4 +43,4 @@ for i in "${!sizes[@]}"; do
   done
 done
 
-echo; echo "All runs finished — results in ${OUT_CSV}"
+echo; echo "All runs finished — results in outputs/memory"
