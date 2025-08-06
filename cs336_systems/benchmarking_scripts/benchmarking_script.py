@@ -22,6 +22,7 @@ p.add_argument("--only_forward", action='store_true')
 p.add_argument("--batch_size", type=int, default=4)
 p.add_argument("--nvtx", action='store_true')
 p.add_argument("--bfloat16", action='store_true')
+p.add_argument("--memory", action='store_true')
 
 
 
@@ -108,6 +109,10 @@ with maybe_range("warmup", args.nvtx):
     _, warmup_oom = run_section(forward_pass, args.num_warmup)
     args.nvtx = original_nvtx
 
+if args.memory:
+    print("Running memory test...")
+    torch.cuda.memory._record_memory_history(max_entries=1000000)
+
 if args.nvtx:
     args.only_forward = True
 # benchmark
@@ -115,7 +120,7 @@ with maybe_range("forward_pass", args.nvtx):
     print("Running forward pass...")
     bench_times, bench_oom = run_section(forward_pass, args.num_benchmark)
 
-if args.nvtx:
+if args.nvtx or args.memory:
     print("Running train step...")
     args.only_forward=False
     with maybe_range("train_step", args.nvtx):
@@ -123,6 +128,10 @@ if args.nvtx:
         with maybe_range("optimizer_step", args.nvtx):
             opt.step()
 
+if args.memory:
+    os.makedirs("outputs/memory", exist_ok=True)
+    torch.cuda.memory._dump_snapshot("outputs/memory/memory_snapshot.pickle")
+    torch.cuda.memory._record_memory_history(enabled=False)
 
 oom = warmup_oom or bench_oom
 row = {
