@@ -118,7 +118,8 @@ if args.nvtx:
 # benchmark
 with maybe_range("forward_pass", args.nvtx):
     print("Running forward pass...")
-    bench_times, bench_oom = run_section(forward_pass, args.num_benchmark)
+    if not args.memory or (args.memory and args.only_forward):
+        bench_times, bench_oom = run_section(forward_pass, args.num_benchmark)
 
 if args.nvtx or (args.memory and not args.only_forward):
     print("Running train step...")
