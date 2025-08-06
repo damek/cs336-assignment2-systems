@@ -50,6 +50,7 @@ random_input = torch.randint(low = 0, high = args.vocab_size, size = (batch_size
 random_target = torch.randint(low = 0, high = args.vocab_size, size = (batch_size, args.context_length), device=device)
 model.to(device)
 handles = []
+
 for n, m in model.named_modules():
     if len(list(m.children())) == 0:
         handle = m.register_forward_hook(lambda module, input, output, name=n: print(f"- {name}: {output.dtype}")) 
@@ -75,11 +76,11 @@ def run_section(fn, num_iter):
         raise                           
 
 def loss_fn():
-    with torch.autocast(device_type="cuda", dtype=dtype, enabled=args.bfloat16):
-        with maybe_range("model_eval", args.nvtx):
-            logits = model(random_input)
-        with maybe_range("loss", args.nvtx):
-            loss = nn_utils.cross_entropy(logits, random_target)
+    # with torch.autocast(device_type="cuda", dtype=dtype, enabled=args.bfloat16):
+    with maybe_range("model_eval", args.nvtx):
+        logits = model(random_input)
+    with maybe_range("loss", args.nvtx):
+        loss = nn_utils.cross_entropy(logits, random_target)
     return loss
 
 def forward_pass():
