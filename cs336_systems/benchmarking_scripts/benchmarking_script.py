@@ -55,6 +55,7 @@ for n, m in model.named_modules():
     if len(list(m.children())) == 0:
         handle = m.register_forward_hook(lambda module, input, output, name=n: print(f"- {name}: {output.dtype}")) 
         handles.append(handle)
+    print("n,", n)
 
 def run_section(fn, num_iter):
     timings = torch.zeros(num_iter)
