@@ -36,7 +36,7 @@ def print_dtype(dtype: torch.dtype):
         print("Forward Pass:")
         for n, m in model.named_modules():
             if len(list(m.children())) == 0:
-                m.register_forward_hook(lambda module, input, output, name=n: print(f"{name}: {output.dtype}")) 
+                m.register_forward_hook(lambda module, input, output, name=n: print(f"- {name}: {output.dtype}")) 
 
         logits = model(x)
         print(f"- logits.dtype: {logits.dtype}")
