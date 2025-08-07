@@ -44,3 +44,9 @@ for i in "${!sizes[@]}"; do
 done
 
 echo; echo "All runs finished — results in outputs/memory"
+
+# Create tar archive of all memory profiling outputs
+tar -czf "../outputs/memory_profiling_$(date +%Y%m%d_%H%M%S).tar.gz" -C "../outputs" memory/
+
+# Delete all files in memory folder after archiving
+rm -rf ../outputs/memory/*
