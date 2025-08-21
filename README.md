@@ -24,8 +24,8 @@ https://x.com/damekdavis/status/1949507725626347825
   - Benchmarking time bfloat16 vs fp32 via autocast
     - Run code [benchmark_bfloat16.sh](cs336_systems/benchmarking_scripts/benchmark_bfloat16.sh)
     - Results: [2025-08-06_table1.1.2_bfloat.csv](cs336_systems/outputs/csv/2025-08-06_table1.1.2_bfloat.csv)
-  - Memory Profiling
-    - Run code [memory_profiling.sh](cs336_systems/benchmarking_scripts/memory_profiling.sh)
+- Memory Profiling
+  - Run code [memory_profiling.sh](cs336_systems/benchmarking_scripts/memory_profiling.sh)
 
 # Getting started with my code
 
