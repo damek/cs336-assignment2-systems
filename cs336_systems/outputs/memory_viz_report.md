@@ -87,3 +87,8 @@ Very clean, lol.
 # Question E
 > Now look closely at the “Active Memory Timeline” from pytorch.org/memory_viz of a memory snapshot of the 2.7B model doing a forward pass. When you reduce the “Detail” level, the tool hides the smallest allocations to the corresponding level (e.g., putting “Detail” at 10% only shows the 10% largest allocations). What is the size of the largest allocations shown? Looking through the stack trace, can you tell where those allocations come from?
 > Deliverable: A 1–2 sentence response.
+
+![](figures/forward_only_largest_allocation.png)
+> Figure 5: The largest allocation in the forward pass.
+
+Zooming in and reducing level of detail, we see that the largest allocation is 128 MB, corresponding to the attention scores. These little peaks repeat 32 times, once for each layer.
