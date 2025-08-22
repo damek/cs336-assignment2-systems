@@ -17,10 +17,28 @@ This will output a tarball of the memory profiling outputs (pickle files and htm
 > Add an option to your profiling script to run your model through the memory profiler. It may be helpful to reuse some of your previous infrastructure (e.g., to activate mixed-precision, load specific model sizes, etc). Then, run your script to get a memory profile of the 2.7B model when either doing inference only (just forward pass) or a full training step. How do your memory timelines look like? Can you tell which stage is running based on the peaks you see?
 > Deliverable: Two images of the “Active memory timeline” of a 2.7B model, from the memory_viz tool: one for the forward pass, and one for running a full training step (forward and backward passes, then optimizer step), and a 2–3 sentence response.
 
+## Forward, backward, optimizer step. 
 ![](figures/memory_snapshot_num_layers_32_num_heads_32_d_model_2560_d_ff_10240_context_length_512_batch_size_4_only_forward_False_bfloat16_False.png)
 > Figure 1: Forward, backward, optimizer step. 
+![](figures/memory_snapshot_num_layers_32_num_heads_32_d_model_2560_d_ff_10240_context_length_512_batch_size_4_only_forward_False_bfloat16_False_labeled.png)
+> Figure 2: A labeled version of Figure 1. 
 
+1. I have no idea what the first initial spike is. GPT5 claims it's a one-time warmup burst from CUDA. Let's ignore it.
+2. Afterwards the forward pass begins. During the forward pass, activations are allocated until we reach the peak.
+3. At the top of the peak, we perform the backward pass, layer by layer until the complete gradient is formed.
+4. Then the optimizer step starts to take memory.
+
+## Forward only
 ![](figures/memory_snapshot_num_layers_32_num_heads_32_d_model_2560_d_ff_10240_context_length_512_batch_size_4_only_forward_True_bfloat16_False.png)
+> Figure 3: Forward only. 
+![](figures/memory_snapshot_num_layers_32_num_heads_32_d_model_2560_d_ff_10240_context_length_512_batch_size_4_only_forward_True_bfloat16_False_labeled.png)
+> Figure 4: A labeled version of Figure 4. 
+
+All the memory is taken up by parameters. The reason is that the forward pass immediately frees activation memory (since I put the pass into a no-grad context). You still see tiny peaks of activation memory, but they are quite small. For example, the attention needed to compute an attention head is with context length 512 is 
+
+$$(\text{Batch size}) \cdot (\text{Num heads}) \cdot (\text{Context Length})^2 \cdot \text{(FP32 size)} =  4\cdot 32\cdot 512^2 \cdot 4 B ≈ 128 \text{MB}$$
+
+
 
 # Question B
 > What is the peak memory usage of each context length when doing a forward pass? What about when doing a full training step?
