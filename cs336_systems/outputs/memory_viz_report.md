@@ -34,23 +34,55 @@ This will output a tarball of the memory profiling outputs (pickle files and htm
 ![](figures/memory_snapshot_num_layers_32_num_heads_32_d_model_2560_d_ff_10240_context_length_512_batch_size_4_only_forward_True_bfloat16_False_labeled.png)
 > Figure 4: A labeled version of Figure 4. 
 
-All the memory is taken up by parameters. The reason is that the forward pass immediately frees activation memory (since I put the pass into a no-grad context). You still see tiny peaks of activation memory, but they are quite small. For example, the attention needed to compute an attention head is with context length 512 is 
+All the memory is taken up by parameters. The reason is that the forward pass immediately frees activation memory (since I put the pass into a no-grad context). You still see tiny peaks of activation memory, but they are quite small. For example, the memory needed to compute an attention score is with context length 512 is 
 
-$$(\text{Batch size}) \cdot (\text{Num heads}) \cdot (\text{Context Length})^2 \cdot \text{(FP32 size)} =  4\cdot 32\cdot 512^2 \cdot 4 B ≈ 128 \text{MB}$$
-
+$$(\text{Batch size}) \cdot (\text{Num heads}) \cdot (\text{Context Length})^2 \cdot \text{(FP32 size)} =  4\cdot 32\cdot 512^2 \cdot 4 B = 128 \text{MB}$$
 
 
 # Question B
 > What is the peak memory usage of each context length when doing a forward pass? What about when doing a full training step?
 > Deliverable: A table with two numbers per context length.
 
+| Context Length | Forward Pass | Full Training Step |
+|---------------|--------------|---------------------|
+| 128           | 12.90 GB     | 51.39 GB            |
+| 256           | 13.00 GB     | 51.39 GB            |
+| 512           | 13.42 GB     | 51.38 GB            |
+
+This was at first confusing, but I think what's going on is that the activations of the forward pass are freed before the optimizer states are allocated. Thus, although the peaks for activation memory are higher when the context length grows, they're not dominated by the cost of just storing a vector the size of the param 4 times (param, grad, 2 optimizer states).
+
 # Question C
 > Find the peak memory usage of the 2.7B model when using mixed-precision, for both a forward pass and a full optimizer step. Does mixed-precision significantly affect memory usage?
 > Deliverable: A 2–3 sentence response.
 
+| Context Length | Forward Pass | Full Training Step |
+|---------------|--------------|---------------------|
+| 128           | 19.18 GB     | 51.39 GB            |
+| 256           | 19.24 GB     | 51.39 GB            |
+| 512           | 19.38 GB     | 51.38 GB            |
+
+Mixed precision does not significantly affect memory usage for the larger models. For the smaller models, autocast creates a bf16 copy of the float parameters. This adds an extra ~6 GBs of forward passmemory, since the bf16 parameters are 2x smaller than the fp32 parameters. When doing a full training step, the peak memory usage does not change, since again the most expensive part is storing 4 vectors of size ~12 GB.
+
 # Question D
 > Consider the 2.7B model. At our reference hyperparameters, what is the size of a tensor of activations in the Transformer residual stream, in single-precision? Give this size in MB (i.e., divide the number of bytes by 1024^2).
 > Deliverable: A 1–2 sentence response with your derivation.
+
+I believe they mean the tensor that moves between each layer of the model. This has size
+
+$$
+\text{Activation tensor size} = (\text{Batch size}) \cdot (\text{Context Length}) \cdot (\text{d_model}) \cdot \text{(FP32 size)} = 4 \cdot T \cdot 2560 \cdot 4 B = \frac{40,960 T}{1024^2} \text{MB} = 0.0390625 T \text{MB}
+$$
+
+Here is a table of the activation tensor size for each context length:
+
+| Context Length | Activation Tensor Size |
+|---------------|-------------------------|
+| 128           | 5 MB                    |
+| 256           | 10 MB                   |
+| 512           | 20 MB                   |
+
+Very clean, lol.
+
 
 # Question E
 > Now look closely at the “Active Memory Timeline” from pytorch.org/memory_viz of a memory snapshot of the 2.7B model doing a forward pass. When you reduce the “Detail” level, the tool hides the smallest allocations to the corresponding level (e.g., putting “Detail” at 10% only shows the 10% largest allocations). What is the size of the largest allocations shown? Looking through the stack trace, can you tell where those allocations come from?
