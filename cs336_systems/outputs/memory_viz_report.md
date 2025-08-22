@@ -73,7 +73,7 @@ $$
 \text{Activation tensor size} = (\text{Batch size}) \cdot (\text{Context Length}) \cdot d_{model} \cdot \text{(FP32 size)} = 4 \cdot T \cdot 2560 \cdot 4 B = \frac{40,960 T}{1024^2} \text{MB} = 0.0390625 T \text{MB}
 $$
 
-Here is a table of the activation tensor size for each context length:
+Thus,
 
 | Context Length | Activation Tensor Size |
 |---------------|-------------------------|
