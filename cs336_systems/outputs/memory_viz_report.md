@@ -70,7 +70,7 @@ Mixed precision does not significantly affect memory usage for the larger models
 I believe they mean the tensor that moves between each layer of the model. This has size
 
 $$
-\text{Activation tensor size} = (\text{Batch size}) \cdot (\text{Context Length}) \cdot d_{model} \cdot \text{(FP32 size)} = 4 \cdot T \cdot 2560 \cdot 4 B = \frac{40,960 T}{1024^2} \text{MB} = 0.0390625 T \; \text{MB}
+\text{Activation tensor size} = (\text{Batch size}) \cdot (\text{Context Length}) \cdot d_{model} \cdot \text{(FP32 size)} = 4 \cdot T \cdot 2560 \cdot 4 B = \frac{40,960 T}{1024^2} \text{MB} = 0.0390625 T \hspace{10pt} \text{MB}
 $$
 
 Thus,
