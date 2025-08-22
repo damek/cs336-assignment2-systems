@@ -76,7 +76,10 @@ def compute_forward_and_loss():
 def run_forward_only():
     """Run only the forward pass without gradients."""
     with torch.no_grad():
-        compute_forward_and_loss()
+        loss = compute_forward_and_loss()
+        # Force computation by accessing the loss value
+        # This prevents potential optimization/elimination of the computation
+        _ = loss.item()
 
 
 def run_forward_and_backward():
