@@ -4,10 +4,16 @@ Run the the profiling script [cs336_systems/benchmarking_scripts/memory_profilin
 
 ```bash
 cd cs336_systems/benchmarking_scripts
-uv run memory_profiling.sh
+bash run_memory_profiling.sh
 ```
 
-This will output a tarball of the memory profiling outputs (pickle files and html) to outputs/memory_profiling_<date>_<time>.tar.gz. Then you can untar it and open the html files in your browser / upload the pickle files to [https://docs.pytorch.org/memory_viz](https://docs.pytorch.org/memory_viz)
+This will output a tarball of the memory profiling outputs (pickle files and html) to 
+```bash
+outputs/memory_profiling_<date>_<time>.tar.gz
+```
+Then you can untar it and open the html files in your browser / upload the pickle files to [https://docs.pytorch.org/memory_viz](https://docs.pytorch.org/memory_viz)
+
+
 
 # Results
 
