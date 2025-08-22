@@ -27,7 +27,7 @@ https://x.com/damekdavis/status/1949507725626347825
 - Memory Profiling
   - Run code [memory_profiling.sh](cs336_systems/benchmarking_scripts/memory_profiling.sh)
   - Results: 
-    - Good to read [this blog post](https://pytorch.org/blog/understanding-gpu-memory-1/).
+    - [memory_viz_report.md](cs336_systems/outputs/memory_viz_report.md)
 
 # Getting started with my code
 

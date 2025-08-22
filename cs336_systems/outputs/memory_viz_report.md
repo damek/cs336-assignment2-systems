@@ -14,6 +14,7 @@ outputs/memory_profiling_<date>_<time>.tar.gz
 Then you can untar it and open the html files in your browser / upload the pickle files to [https://docs.pytorch.org/memory_viz](https://docs.pytorch.org/memory_viz)
 
 
+Note: You should probably skim [this blog post](https://pytorch.org/blog/understanding-gpu-memory-1/).
 
 # Results
 
