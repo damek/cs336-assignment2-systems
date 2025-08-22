@@ -49,6 +49,7 @@ export PATH="$HOME/.local/bin:$PATH"
 uv sync
 uv venv
 source .venv/bin/activate
+uv sync # Sometimes needed
 ```
 
 ### Getting files out of the pod
