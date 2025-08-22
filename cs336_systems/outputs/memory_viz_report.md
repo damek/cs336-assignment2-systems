@@ -68,7 +68,7 @@ This was at first confusing, but I think what's going on is that the activations
 | 256           | 19.24 GB     | 51.39 GB            |
 | 512           | 19.38 GB     | 51.38 GB            |
 
-Mixed precision does not significantly affect memory usage for the larger models. For the smaller models, autocast creates a bf16 copy of the float parameters. This adds an extra ~6 GBs of forward passmemory, since the bf16 parameters are 2x smaller than the fp32 parameters. When doing a full training step, the peak memory usage does not change, since again the most expensive part is storing 4 vectors of size ~12 GB.
+Mixed precision does not significantly affect memory usage for forward-backward-training step run. For the forward-only step, autocast creates a bf16 copy of the float parameters. This adds an extra ~6 GBs of forward passmemory, since the bf16 parameters are 2x smaller than the fp32 parameters. When doing a full training step, the peak memory usage does not change, since again the most expensive part is storing 4 vectors of size ~12 GB.
 
 # Question D
 > Consider the 2.7B model. At our reference hyperparameters, what is the size of a tensor of activations in the Transformer residual stream, in single-precision? Give this size in MB (i.e., divide the number of bytes by 1024^2).
