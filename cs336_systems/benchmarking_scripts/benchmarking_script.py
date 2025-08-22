@@ -130,6 +130,7 @@ if args.nvtx or (args.memory and not args.only_forward):
         bench_times, bench_oom = run_section(forward_pass, args.num_benchmark)
         with maybe_range("optimizer_step", args.nvtx):
             opt.step()
+            opt.zero_grad(set_to_none=True)
 else: 
     print("Skipping train step")
 

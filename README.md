@@ -26,6 +26,8 @@ https://x.com/damekdavis/status/1949507725626347825
     - Results: [2025-08-06_table1.1.2_bfloat.csv](cs336_systems/outputs/csv/2025-08-06_table1.1.2_bfloat.csv)
 - Memory Profiling
   - Run code [memory_profiling.sh](cs336_systems/benchmarking_scripts/memory_profiling.sh)
+  - Results: 
+    - Good to read [this blog post](https://pytorch.org/blog/understanding-gpu-memory-1/).
 
 # Getting started with my code
 
