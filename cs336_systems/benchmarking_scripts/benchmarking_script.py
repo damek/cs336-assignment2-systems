@@ -201,10 +201,24 @@ def run_benchmarks():
     if args.memory:
         if profiler is not None:
             profiler.__exit__(None, None, None)
+            # Export memory timeline
+            export_memory_timeline()
         dump_memory_snapshot()
     
     return bench_times, warmup_oom or bench_oom
 
+
+def export_memory_timeline():
+    """Export memory timeline visualization from profiler."""
+    timeline_name = (f"memory_timeline_num_layers_{args.num_layers}_"
+                    f"num_heads_{args.num_heads}_d_model_{args.d_model}_"
+                    f"d_ff_{args.d_ff}_context_length_{args.context_length}_"
+                    f"batch_size_{args.batch_size}_only_forward_{args.only_forward}_"
+                    f"bfloat16_{args.bfloat16}")
+    
+    print(f"Exporting memory timeline for run {timeline_name}")
+    os.makedirs("../outputs/memory", exist_ok=True)
+    profiler.export_memory_timeline(f"../outputs/memory/{timeline_name}.html", device="cuda:0")
 
 
 def dump_memory_snapshot():
