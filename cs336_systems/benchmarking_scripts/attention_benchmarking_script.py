@@ -75,6 +75,7 @@ def run_config(d_model, seq_length):
         if "out of memory" in str(e).lower():
             bwd_oom = True
             torch.cuda.empty_cache()
+            print("Out of memory error in backward pass")
         else:
             raise
 
