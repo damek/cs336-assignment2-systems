@@ -102,11 +102,6 @@ def _step_bwd(Q, K, V):
 d_models = [16, 32, 64, 128]
 context_lengths = [256, 1024, 4096, 8192, 16384]
 
-for d_model in d_models:
-    for seq_length in context_lengths:
-        out = run_config(d_model, seq_length)
-        print(out)
-
 rows = []
 for d in d_models:
     for L in context_lengths:
