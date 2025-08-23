@@ -1,5 +1,6 @@
 import torch, time
 import cs336_basics.model as models
+import pandas as pd
 
 attention = models.scaled_dot_product_attention
 device = "cuda"
@@ -105,3 +106,44 @@ for d_model in d_models:
     for seq_length in context_lengths:
         out = run_config(d_model, seq_length)
         print(out)
+
+rows = []
+for d in d_models:
+    for L in context_lengths:
+        try:
+            res = run_config(d, L)  
+        except RuntimeError as e:
+            res = {"d_model": d, "seq_len": L, "status": "OOM(forward)"}
+        rows.append(res)
+
+df = pd.DataFrame(rows)
+
+col_order = [
+    "d_model", "seq_len",
+    "forward_ms", "backward_ms",
+    "mem_after_inputs_MiB", "mem_before_backward_MiB",
+    "saved_activations_MiB",
+    "forward_peak_MiB", "backward_peak_MiB",
+    "status",
+]
+df = df.reindex(columns=[c for c in col_order if c in df.columns])
+
+df = df.sort_values(["d_model", "seq_len"]).reset_index(drop=True)
+
+# Pretty print 
+with pd.option_context("display.max_rows", None,
+                       "display.max_columns", None,
+                       "display.width", 160,
+                       "display.float_format", "{:,.3f}".format):
+    print(df.to_string(index=False))
+
+# Save a CSV 
+out_csv = "attention_bench.csv"
+df.to_csv(out_csv, index=False)
+print(f"\nSaved results to {out_csv}")
+
+if {"forward_ms", "backward_ms"} <= set(df.columns):
+    fwd_pivot = df.pivot(index="seq_len", columns="d_model", values="forward_ms")
+    bwd_pivot = df.pivot(index="seq_len", columns="d_model", values="backward_ms")
+    print("\nForward (ms/iter) by seq_len x d_model:\n", fwd_pivot.to_string(float_format="{:,.3f}".format))
+    print("\nBackward (ms/iter) by seq_len x d_model:\n", bwd_pivot.to_string(float_format="{:,.3f}".format))
