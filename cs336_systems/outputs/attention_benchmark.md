@@ -13,7 +13,7 @@
 
 You can run the script with 
 ```bash
-uv run python cs336_systems/benchmarking_scripts/attention_benchmarking_script.py
+uv run cs336_systems/benchmarking_scripts/attention_benchmarking_script.py
 ```
 
 ## Timings
