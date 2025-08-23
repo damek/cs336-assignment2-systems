@@ -116,9 +116,9 @@ df = pd.DataFrame(rows)
 col_order = [
     "d_model", "seq_len",
     "forward_ms", "backward_ms",
-    "mem_after_inputs_MiB", "mem_before_backward_MiB",
-    "saved_activations_MiB",
-    "forward_peak_MiB", "backward_peak_MiB",
+    "mem_after_inputs_MB", "mem_before_backward_MB",
+    "saved_activations_MB",
+    "forward_peak_MB", "backward_peak_MB",
     "status",
 ]
 df = df.reindex(columns=[c for c in col_order if c in df.columns])
