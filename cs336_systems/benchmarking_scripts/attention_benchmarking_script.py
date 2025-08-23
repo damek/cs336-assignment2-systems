@@ -84,12 +84,12 @@ def run_config(d_model, seq_length):
         "d_model": d_model,
         "seq_len": seq_length,
         "forward_ms": fwd_ms,
-        "forward_peak_MB": fwd_peak_bytes / 1024**2,
-        "mem_after_inputs_MB": mem_after_inputs / 1024**2,
-        "mem_before_backward_MB": mem_before_bwd / 1024**2,
-        "saved_activations_MB": saved_activations / 1024**2,
+        "forward_peak_MiB": fwd_peak_bytes / 1024**2,
+        "mem_after_inputs_MiB": mem_after_inputs / 1024**2,
+        "mem_before_backward_MiB": mem_before_bwd / 1024**2,
+        "saved_activations_MiB": saved_activations / 1024**2,
         "backward_ms": (None if bwd_oom else bwd_ms),
-        "backward_peak_MB": (None if bwd_oom else bwd_peak_bytes / 1024**2),
+        "backward_peak_MiB": (None if bwd_oom else bwd_peak_bytes / 1024**2),
         "status": ("OOM(backward)" if bwd_oom else "ok"),
     }
 
@@ -116,9 +116,9 @@ df = pd.DataFrame(rows)
 col_order = [
     "d_model", "seq_len",
     "forward_ms", "backward_ms",
-    "mem_after_inputs_MB", "mem_before_backward_MB",
-    "saved_activations_MB",
-    "forward_peak_MB", "backward_peak_MB",
+    "mem_after_inputs_MiB", "mem_before_backward_MiB",
+    "saved_activations_MiB",
+    "forward_peak_MiB", "backward_peak_MiB",
     "status",
 ]
 df = df.reindex(columns=[c for c in col_order if c in df.columns])
