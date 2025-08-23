@@ -103,4 +103,5 @@ context_lengths = [256, 1024, 4096, 8192, 16384]
 
 for d_model in d_models:
     for seq_length in context_lengths:
-        run_config(d_model, seq_length)
+        out = run_config(d_model, seq_length)
+        print(out)
