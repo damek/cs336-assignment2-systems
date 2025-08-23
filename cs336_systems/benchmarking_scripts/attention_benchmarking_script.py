@@ -10,22 +10,6 @@ nb_warmup = 10
 nb_forward_passes = 100
 nb_backward_passes = nb_forward_passes
 
-def benchmark_attention(d_models, context_lengths, nb_iter, backward=False):
-    for d_model in d_models:
-        for context_length in context_lengths:
-            Q = torch.randn(batch_size, context_length, d_model, device="cuda")
-            K = torch.randn(batch_size, context_length, d_model, device="cuda")
-            V = torch.randn(batch_size, context_length, d_model, device="cuda")
-            for _ in range(nb_iter):
-                out = attention(Q,K,V)
-                loss = out.sum()
-                if backward:
-                    loss.backward()
-                    Q.grad = None
-                    K.grad = None
-                    V.grad = None
-                torch.cuda.synchronize()
-
 def time_loop(fn, iters):
     torch.cuda.synchronize()
     t0 = time.perf_counter()
