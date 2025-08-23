@@ -1,7 +1,28 @@
 # Attention Benchmarking Results
 
+> (a) Benchmark your attention implementation at different scales. Write a script that will:
+> (a) Fix the batch size to 8 and don’t use multihead attention (i.e. remove the head dimension).
+> (b) Iterate through the cartesian product of [16, 32, 64, 128] for the head embedding di-
+> mension dmodel, and [256, 1024, 4096, 8192, 16384] for the sequence length.
+> (c) Create random inputs Q, K, V for the appropriate size.
+> (d) Time 100 forward passes through attention using the inputs.
+> (e) Measure how much memory is in use before the backward pass starts, and time 100 backward
+> passes.
+> (f) Make sure to warm up, and to call torch.cuda.synchronize() after each forward/backward
+> pass.
 
-|   d_model |   seq_len |   forward_ms |   backward_ms |   mem_after_inputs_MB |   mem_before_backward_MB |   saved_activations_MB |   forward_peak_MB |   backward_peak_MB | status   |
+You can run the script with 
+```bash
+uv run python cs336_systems/benchmarking_scripts/attention_benchmarking_script.py
+```
+
+## Timings
+> Report the timings (or out-of-memory errors) you get for these configurations. 
+> At what size do you get out-of-memory errors?
+
+Timings below! We never get out-of-memory errors.
+
+|   d_model |   seq_len |   forward_ms |   backward_ms |   mem_after_inputs_MiB |   mem_before_backward_MiB |   saved_activations_MiB |   forward_peak_MiB |   backward_peak_MiB | status   |
 |----------:|----------:|-------------:|--------------:|----------------------:|-------------------------:|-----------------------:|------------------:|-------------------:|:---------|
 |        16 |       256 |     0.245064 |      0.875942 |               16.7505 |                  20.7739 |                4.02344 |           24.7739 |            33.0483 | ok       |
 |        16 |      1024 |     0.365331 |      1.2174   |               18.2505 |                  82.3442 |               64.0938  |          146.344  |           275.439  | ok       |
@@ -41,3 +62,19 @@ Backward (ms/iter) by seq_len x d_model:
 |      4096 |  14.0086   |  14.5374   |  14.8003   |  15.5428   |
 |      8192 |  55.1659   |  55.9166   |  57.206    |  60.044    |
 |     16384 | 220.459    | 222.943    | 228.148    | 240.959    |
+
+## Memory Usage
+
+> Do the accounting for the memory usage of attention in one of the
+> smallest configurations you find that runs out of memory (you can use the equations for memory
+> usage of Transformers from Assignment 1). How does the memory saved for backward change
+> with the sequence length? 
+
+We had no OOM errors, so we'll just use the largest configuration that ran.
+
+Our forward pass saves the activations (probs and logits). This is in the table under `saved_activations_MiB`. This amounts to 2* B * L^2 * 4 bytes. = 2* 8 * 16384^2 * 4 bytes = 17,179,869,184 bytes = 16,384 MiB, which closely matches the table. 
+
+> What would you do to eliminate this memory cost?
+
+Flash attention, duh.
+
