@@ -138,7 +138,7 @@ with pd.option_context("display.max_rows", None,
     print(df.to_string(index=False))
 
 # Save a CSV 
-out_csv = "attention_bench.csv"
+out_csv = "../outputs/csv/attention_benchmark.csv"
 df.to_csv(out_csv, index=False)
 print(f"\nSaved results to {out_csv}")
 
