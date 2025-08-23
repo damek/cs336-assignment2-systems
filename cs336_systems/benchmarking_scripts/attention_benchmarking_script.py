@@ -1,3 +1,5 @@
+## Jetlagged so GPT5 helped me work out this script.
+
 import torch, time
 import cs336_basics.model as models
 import pandas as pd
