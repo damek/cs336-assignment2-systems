@@ -25,6 +25,7 @@ p.add_argument("--batch_size", type=int, default=4)
 p.add_argument("--nvtx", action='store_true')
 p.add_argument("--bfloat16", action='store_true')
 p.add_argument("--memory", action='store_true')
+p.add_argument("--compile", action='store_true')
 
 args = p.parse_args()
 
@@ -49,6 +50,8 @@ if torch.cuda.is_available():
 random_input = torch.randint(low = 0, high = args.vocab_size, size = (batch_size, args.context_length), device=device)
 random_target = torch.randint(low = 0, high = args.vocab_size, size = (batch_size, args.context_length), device=device)
 model.to(device)
+if args.compile:
+    model = torch.compile(model)
 
 # Global profiler for memory mode
 profiler = None
@@ -253,6 +256,7 @@ def save_results(bench_times, oom):
         "mean_s": None if oom else float(bench_times.mean()),
         "std_s":  None if oom else float(bench_times.std()),
         "oom": oom,
+        "compile": args.compile,
     }
     
     if args.output_csv:
