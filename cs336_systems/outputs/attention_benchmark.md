@@ -20,7 +20,7 @@ uv run cs336_systems/benchmarking_scripts/attention_benchmarking_script.py
 > Report the timings (or out-of-memory errors) you get for these configurations. 
 > At what size do you get out-of-memory errors?
 
-Timings below! We never get out-of-memory errors.
+Timings below! We never get out-of-memory errors. (This table also includes torch.compile results)
 
 |   d_model |   seq_len |   forward_ms |   backward_ms |   mem_after_inputs_MiB |   mem_before_backward_MiB |   saved_activations_MiB |   forward_peak_MiB |   backward_peak_MiB | status   | compile   |
 |----------:|----------:|-------------:|--------------:|-----------------------:|--------------------------:|------------------------:|-------------------:|--------------------:|:---------|:----------|
@@ -93,6 +93,8 @@ Backward (ms/iter) by seq_len x d_model x compile:
 We had no OOM errors, so we'll just use the largest configuration that ran.
 
 Our forward pass saves the activations (probs and logits). This is in the table under `saved_activations_MiB`. This amounts to 2* B * L^2 * 4 bytes. = 2* 8 * 16384^2 * 4 bytes = 17,179,869,184 bytes = 16,384 MiB, which closely matches the table. 
+
+When we use torch.compile, we lower the memory usage to about 49GiB.
 
 > What would you do to eliminate this memory cost?
 
