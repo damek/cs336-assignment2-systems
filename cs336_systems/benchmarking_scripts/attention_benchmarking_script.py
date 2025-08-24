@@ -21,7 +21,7 @@ def time_loop(fn, iters):
     t1 = time.perf_counter()
     return (t1 - t0) * 1000.0 / iters  # ms/iter
 
-def run_config(d_model, seq_length):
+def run_config(d_model, seq_length, compile=False):
     torch.cuda.synchronize()
     torch.cuda.empty_cache()
 
