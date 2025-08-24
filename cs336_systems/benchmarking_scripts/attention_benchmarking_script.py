@@ -41,7 +41,7 @@ def run_config(d_model, seq_length, compile=False):
     K = torch.randn(batch_size, seq_length, d_model, device=device, dtype=dtype, requires_grad=True)
     V = torch.randn(batch_size, seq_length, d_model, device=device, dtype=dtype, requires_grad=True)
 
-    print("Warmup for d_model: ", d_model, "and context_length: ", seq_length)
+    print("Warmup for d_model: ", d_model, "and context_length: ", seq_length, "and compile: ", compile)
     for _ in range(nb_warmup):
         out = attention(Q, K, V)
         loss = out.sum()
@@ -49,12 +49,12 @@ def run_config(d_model, seq_length, compile=False):
         Q.grad = K.grad = V.grad = None
     torch.cuda.synchronize()
 
-    print("Forward timing for d_model: ", d_model, "and context_length: ", seq_length)
+    print("Forward timing for d_model: ", d_model, "and context_length: ", seq_length, "and compile: ", compile)
     torch.cuda.reset_peak_memory_stats()
     fwd_ms = time_loop(lambda: (attention(Q, K, V).sum(),), nb_forward_passes) 
     fwd_peak_bytes = torch.cuda.max_memory_allocated()
 
-    print("Memory before backward pass for d_model: ", d_model, "and context_length: ", seq_length)
+    print("Memory before backward pass for d_model: ", d_model, "and context_length: ", seq_length, "and compile: ", compile)
     torch.cuda.synchronize()
     mem_after_inputs = torch.cuda.memory_allocated()
     out = attention(Q, K, V); loss = out.sum()
@@ -62,7 +62,7 @@ def run_config(d_model, seq_length, compile=False):
     mem_before_bwd = torch.cuda.memory_allocated()
     saved_activations = mem_before_bwd - mem_after_inputs  
 
-    print("Backward timing for d_model: ", d_model, "and context_length: ", seq_length)
+    print("Backward timing for d_model: ", d_model, "and context_length: ", seq_length, "and compile: ", compile)
     torch.cuda.reset_peak_memory_stats()
     bwd_ms = None
     bwd_peak_bytes = None
