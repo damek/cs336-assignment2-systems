@@ -8,6 +8,13 @@ import timeit
 from contextlib import nullcontext
 from torch.profiler import record_function
 
+uid = getattr(os, "getuid", lambda: os.getpid())()
+cache_dir = os.environ.get("TORCHINDUCTOR_CACHE_DIR", f"/tmp/torchinductor_{uid}")
+os.environ["TORCHINDUCTOR_CACHE_DIR"] = cache_dir
+os.environ.setdefault("USER", f"user{uid}")   # sidestep getpass.getuser()
+os.environ.setdefault("HOME", "/tmp")
+os.makedirs(cache_dir, exist_ok=True)
+
 
 p = argparse.ArgumentParser()
 p.add_argument("--num_layers", type=int, required=True)
