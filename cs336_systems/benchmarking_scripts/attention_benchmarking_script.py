@@ -4,7 +4,6 @@ import torch, time
 import cs336_basics.model as models
 import pandas as pd
 
-attention = models.scaled_dot_product_attention
 device = "cuda"
 dtype = torch.float32
 batch_size = 8
@@ -22,8 +21,16 @@ def time_loop(fn, iters):
     return (t1 - t0) * 1000.0 / iters  # ms/iter
 
 def run_config(d_model, seq_length, compile=False):
+
+    attention = models.scaled_dot_product_attention
+    if compile:
+        attention = torch.compile(attention)
+
     torch.cuda.synchronize()
     torch.cuda.empty_cache()
+
+
+
 
     Q = torch.randn(batch_size, seq_length, d_model, device=device, dtype=dtype, requires_grad=True)
     K = torch.randn(batch_size, seq_length, d_model, device=device, dtype=dtype, requires_grad=True)
@@ -91,11 +98,12 @@ context_lengths = [256, 1024, 4096, 8192, 16384]
 rows = []
 for d in d_models:
     for L in context_lengths:
-        try:
-            res = run_config(d, L)  
-        except RuntimeError as e:
-            res = {"d_model": d, "seq_len": L, "status": "OOM(forward)"}
-        rows.append(res)
+        for compile in [False, True]:
+            try:
+                res = run_config(d, L, compile)  
+            except RuntimeError as e:
+                res = {"d_model": d, "seq_len": L, "compile": compile, "status": "OOM(forward)"}
+            rows.append(res)
 
 df = pd.DataFrame(rows)
 
@@ -105,7 +113,7 @@ col_order = [
     "mem_after_inputs_MiB", "mem_before_backward_MiB",
     "saved_activations_MiB",
     "forward_peak_MiB", "backward_peak_MiB",
-    "status",
+    "status", "compile",
 ]
 df = df.reindex(columns=[c for c in col_order if c in df.columns])
 
@@ -120,7 +128,7 @@ df.to_csv(out_csv, index=False)
 print(f"\nSaved results to {out_csv}")
 
 if {"forward_ms", "backward_ms"} <= set(df.columns):
-    fwd_pivot = df.pivot(index="seq_len", columns="d_model", values="forward_ms")
-    bwd_pivot = df.pivot(index="seq_len", columns="d_model", values="backward_ms")
-    print("\nForward (ms/iter) by seq_len x d_model:\n", fwd_pivot.to_markdown())
-    print("\nBackward (ms/iter) by seq_len x d_model:\n", bwd_pivot.to_markdown())
+    fwd_pivot = df.pivot(index="seq_len", columns=["d_model", "compile"], values="forward_ms")
+    bwd_pivot = df.pivot(index="seq_len", columns=["d_model", "compile"], values="backward_ms")
+    print("\nForward (ms/iter) by seq_len x d_model x compile:\n", fwd_pivot.to_markdown())
+    print("\nBackward (ms/iter) by seq_len x d_model x compile:\n", bwd_pivot.to_markdown())
