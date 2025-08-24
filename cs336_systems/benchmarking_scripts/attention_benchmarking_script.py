@@ -89,6 +89,7 @@ def run_config(d_model, seq_length, compile=False):
         "backward_ms": (None if bwd_oom else bwd_ms),
         "backward_peak_MiB": (None if bwd_oom else bwd_peak_bytes / 1024**2),
         "status": ("OOM(backward)" if bwd_oom else "ok"),
+        "compile": compile,
     }
 
 def _step_bwd(Q, K, V, attention):
