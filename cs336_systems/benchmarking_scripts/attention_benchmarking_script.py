@@ -30,8 +30,6 @@ def run_config(d_model, seq_length, compile=False):
     torch.cuda.empty_cache()
 
 
-
-
     Q = torch.randn(batch_size, seq_length, d_model, device=device, dtype=dtype, requires_grad=True)
     K = torch.randn(batch_size, seq_length, d_model, device=device, dtype=dtype, requires_grad=True)
     V = torch.randn(batch_size, seq_length, d_model, device=device, dtype=dtype, requires_grad=True)
@@ -63,7 +61,7 @@ def run_config(d_model, seq_length, compile=False):
     bwd_peak_bytes = None
     bwd_oom = False
     try:
-        bwd_ms = time_loop(lambda: _step_bwd(Q, K, V), nb_backward_passes)
+        bwd_ms = time_loop(lambda: _step_bwd(Q, K, V, attention), nb_backward_passes)
         bwd_peak_bytes = torch.cuda.max_memory_allocated()
     except RuntimeError as e:
         if "out of memory" in str(e).lower():
@@ -86,7 +84,7 @@ def run_config(d_model, seq_length, compile=False):
         "status": ("OOM(backward)" if bwd_oom else "ok"),
     }
 
-def _step_bwd(Q, K, V):
+def _step_bwd(Q, K, V, attention):
     out = attention(Q, K, V)
     loss = out.sum()
     loss.backward()
