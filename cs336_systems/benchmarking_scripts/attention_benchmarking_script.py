@@ -1,8 +1,15 @@
 ## Jetlagged so GPT5 helped me work out this script.
 
-import torch, time
+import torch, time, os
 import cs336_basics.model as models
 import pandas as pd
+
+uid = getattr(os, "getuid", lambda: os.getpid())()
+cache_dir = os.environ.get("TORCHINDUCTOR_CACHE_DIR", f"/tmp/torchinductor_{uid}")
+os.environ["TORCHINDUCTOR_CACHE_DIR"] = cache_dir
+os.environ.setdefault("USER", f"user{uid}")   # sidestep getpass.getuser()
+os.environ.setdefault("HOME", "/tmp")
+os.makedirs(cache_dir, exist_ok=True)
 
 device = "cuda"
 dtype = torch.float32
