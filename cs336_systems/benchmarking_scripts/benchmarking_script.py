@@ -258,6 +258,7 @@ def save_results(bench_times, oom):
         "d_ff":       args.d_ff,
         "context_length":    args.context_length,
         "batch_size":      args.batch_size,
+        "num_warmup": args.num_warmup,
         "only_forward": args.only_forward,
         "bfloat16": args.bfloat16,
         "mean_s": None if oom else float(bench_times.mean()),
