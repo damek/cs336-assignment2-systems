@@ -17,7 +17,7 @@ warmups=( "on:5" "off:0" )
 COMMON_STATIC="--vocab_size 10000 --rope_theta 10000 --batch_size 4 \
                --num_benchmark 10 --output_csv ${OUT_CSV}"
 
-echo "timestamp,num_layers,num_heads,d_model,d_ff,context_length,batch_size,only_forward,mean_s,std_s,oom" > "${OUT_CSV}"
+echo "timestamp,num_layers,num_heads,d_model,d_ff,context_length,batch_size,bfloat16,only_forward,mean_s,std_s,oom,compile" > "${OUT_CSV}"
 
 for i in "${!sizes[@]}"; do
   SIZE=${sizes[$i]}
