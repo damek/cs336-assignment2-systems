@@ -12,7 +12,7 @@ heads=(12 16 20 25 32)
 
 contexts=(128 256 512 1024)
 
-warmups=( "on:5" "off:0" )
+warmups=( "on:10" )
 
 compiles=( "no" "yes" )
 
