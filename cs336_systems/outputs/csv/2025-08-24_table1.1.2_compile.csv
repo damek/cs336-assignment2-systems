@@ -1,4 +1,4 @@
-timestamp,num_layers,num_heads,d_model,d_ff,context_length,batch_size,only_forward,mean_s,std_s,oom
+timestamp,num_layers,num_heads,d_model,d_ff,context_length,batch_size,only_forward,mean_s,std_s,oom,compile
 2025-08-24T14:37:34,12,12,768,3072,128,4,False,False,0.05526002496480942,0.004771864041686058,False,False
 2025-08-24T14:37:50,12,12,768,3072,128,4,False,False,0.03075416013598442,0.00020214769756421447,False,True
 2025-08-24T14:37:55,12,12,768,3072,128,4,False,False,0.10908957570791245,0.16437923908233643,False,False
