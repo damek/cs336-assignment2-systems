@@ -32,7 +32,7 @@ https://x.com/damekdavis/status/1949507725626347825
   - Results: [attention_benchmark.md](cs336_systems/outputs/attention_benchmark.md)
 - End to end profiling with Timeit again, this time with torch.compile
   - Run code [benchmark_table1.1.2_compile.sh](cs336_systems/benchmarking_scripts/benchmark_table1.1.2_compile.sh)
-  - Results: [2025-08-24_table1.1.2_compile.csv](cs336_systems/outputs/csv/2025-08-24_table1.1.2_compile.csv)
+  - Results: [2025-08-25_table1.1.2_compile.csv](cs336_systems/outputs/csv/2025-08-25_table1.1.2_compile.csv)
 
 # Getting started with my code
 
