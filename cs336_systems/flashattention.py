@@ -109,6 +109,23 @@ def flash_fwd_kernel(
     tl.store(L_block_ptr, l_i, boundary_check=(0,))
 
 
+@torch.compile
+def flash_attention_backward(Q, K, V, L, O, dO,sqrt_d,is_causal):
+    D = (O * dO).sum(dim=-1, keepdim=True)
+    S = einsum(Q, K, "... i d, ... j d -> ... i j")/sqrt_d
+    if is_causal: 
+        i = torch.arange(S.shape[-2], device=S.device)
+        mask = i[None, :] > i[:, None]
+        S = S.masked_fill(mask, float("-inf"))
+    P = torch.exp(S - L.unsqueeze(-1))
+    dV = einsum(P, dO, "... i j, ... i d -> ... j d")
+    dP = einsum(dO.to(V.dtype), V, "... i d, ... j d -> ... i j")
+    dS = P * (dP - D)
+    dQ = einsum(dS.to(K.dtype), K, "... a b, ... b c-> ... a c")/sqrt_d
+    dK = einsum(dS.to(Q.dtype), Q, "... a b, ... a d -> ... b d")/sqrt_d
+
+    return dQ, dK, dV, None
+
 class FlashAttention(torch.autograd.Function):
     @staticmethod
     def forward(ctx, Q : torch.Tensor ,K : torch.Tensor,V : torch.Tensor, is_causal : tl.constexpr=False):
@@ -160,21 +177,9 @@ class FlashAttention(torch.autograd.Function):
         ctx.is_causal = is_causal
         ctx.sqrt_d = math.sqrt(d)
         return O
-    @torch.compile
+    @staticmethod
     def backward(ctx, dO):
-        Q,K,V,L,O = ctx.saved_tensors
-        D = (O * dO).sum(dim=-1, keepdim=True)
-        S = einsum(Q, K, "... i d, ... j d -> ... i j")/ctx.sqrt_d
-        if ctx.is_causal: 
-            i = torch.arange(S.shape[-2], device=S.device)
-            mask = i[None, :] > i[:, None]
-            S = S.masked_fill(mask, float("-inf"))
-        P = torch.exp(S - L.unsqueeze(-1))
-        dV = einsum(P, dO, "... i j, ... i d -> ... j d")
-        dP = einsum(dO.to(V.dtype), V, "... i d, ... j d -> ... i j")
-        dS = P * (dP - D)
-        dQ = einsum(dS.to(K.dtype), K, "... a b, ... b c-> ... a c")/ctx.sqrt_d
-        dK = einsum(dS.to(Q.dtype), Q, "... a b, ... a d -> ... b d")/ctx.sqrt_d
+        return flash_attention_backward(ctx.Q, ctx.K, ctx.V, ctx.L, ctx.O, dO, ctx.sqrt_d, ctx.is_causal)
 
         return dQ, dK, dV, None
 
