@@ -18,6 +18,7 @@ def flash_fwd_kernel(
     D: tl.constexpr,
     Q_TILE_SIZE: tl.constexpr,
     K_TILE_SIZE: tl.constexpr,
+    is_causal : tl.constexpr
     ):
     # Program indices
     query_tile_index = tl.program_id(0)
@@ -72,13 +73,20 @@ def flash_fwd_kernel(
 
     m_i = tl.full((Q_TILE_SIZE,), value=float('-inf'), dtype=tl.float32)
     l_i = tl.zeros((Q_TILE_SIZE,), dtype=tl.float32)
+    mask = tl.zeros((Q_TILE_SIZE, K_TILE_SIZE), dtype=tl.float32,)
     Q_i = tl.load(Q_block_ptr, boundary_check=(0,1), padding_option="zero")
-
     O_i = tl.zeros((Q_TILE_SIZE, D), dtype=tl.float32)
+    mask_scale = 0
+    if is_causal:
+        mask_scale = -1e-6
+    idx_q = tl.arange(query_tile_index * Q_TILE_SIZE, query_tile_index * (Q_TILE_SIZE + 1))
+    idx_k = tl.arange(0, N_KEYS)
+
     for j in range(tl.cdiv(N_KEYS, K_TILE_SIZE)):
+        mask = mask_scale*(idx_q[:, None] >= j*K_TILE_SIZE:(j+1)*K_TILE_SIZE)
         K_j = tl.load(K_block_ptr, boundary_check=(0,1), padding_option="zero")
         V_j = tl.load(V_block_ptr, boundary_check=(0,1), padding_option="zero")
-        S = tl.dot(Q_i,tl.trans(K_j))*scale
+        S = tl.dot(Q_i,tl.trans(K_j))*scale + mask
         m_i_new = tl.maximum(m_i, tl.max(S, axis=-1))
         tildeP = tl.exp(S - m_i_new[:, None])
         exp_scale = tl.exp(m_i - m_i_new)
@@ -97,7 +105,7 @@ def flash_fwd_kernel(
 
 class FlashAttention(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, Q : torch.Tensor ,K : torch.Tensor,V : torch.Tensor, is_causal=False):
+    def forward(ctx, Q : torch.Tensor ,K : torch.Tensor,V : torch.Tensor, is_causal : tl.constexpr=False):
         B_q = B_k = 16
         # B_k = 1
         T_q = triton.cdiv(Q.shape[-2], B_q)
@@ -142,6 +150,7 @@ class FlashAttention(torch.autograd.Function):
             K_TILE_SIZE,
             )
         ctx.save_for_backward(Q,K,V,L,O)
+        ctx.is_causal = is_causal
         return O
     
     def backward(ctx, dO):
