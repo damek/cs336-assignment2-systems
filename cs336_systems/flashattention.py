@@ -112,8 +112,8 @@ class FlashAttention(torch.autograd.Function):
         d = Q.shape[-1]
         device = "cuda"
         # O_i = torch.empty(*Q.shape[:-2],B_q, d, device= device)
-        O = torch.empty(Q.shape, device=Q.device)
-        L = torch.empty(Q.shape[:-1], device=Q.device)
+        O = torch.empty(Q.shape, device=Q.device, dtype=Q.dtype)
+        L = torch.empty(Q.shape[:-1], device=Q.device, dtype=Q.dtype)
         batch_size = Q.shape[0]
         N_QUERIES = Q.shape[-2]
         N_KEYS = K.shape[-2]
