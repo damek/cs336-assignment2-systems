@@ -213,7 +213,7 @@ class FlashAttentionPytorch(torch.autograd.Function):
         S = einsum(Q, K, "... i d, ... j d -> ... i j")/ctx.sqrt_d
         P = torch.exp(S - L.unsqueeze(-1))
         dV = einsum(P, dO, "... i j, ... i d -> ... j d")
-        dP = einsum(dO, V, "... i d, ... j d -> ... i d")
+        dP = einsum(dO, V, "... i j, ... d j -> ... i d")
         dS = P * (dP - D)
         dQ = einsum(dS, K, "... a b, ... b c-> ... a c")
         dK = einsum(dS, Q, "... a b, ... a d -> ... b d")/ctx.sqrt_d
