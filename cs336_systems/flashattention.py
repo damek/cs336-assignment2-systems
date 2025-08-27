@@ -49,7 +49,7 @@ def flash_fwd_kernel(
     strides=(stride_lq,),
     offsets=(query_tile_index * Q_TILE_SIZE,),
     block_shape=(Q_TILE_SIZE,),
-    order=(1, 0),
+    order=(0,),
     )
 
     K_block_ptr = tl.make_block_ptr(
