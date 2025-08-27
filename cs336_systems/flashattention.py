@@ -153,6 +153,7 @@ class FlashAttention(torch.autograd.Function):
             )
         ctx.save_for_backward(Q,K,V,L,O)
         ctx.is_causal = is_causal
+        ctx.sqrt_d = math.sqrt(d)
         return O
     
     def backward(ctx, dO):
