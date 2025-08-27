@@ -6,8 +6,8 @@ import pandas as pd
 from typing import List, Tuple, Optional, Dict
 import itertools
 import gc
-
 from cs336_systems.flashattention import FlashAttention
+
 uid = getattr(os, "getuid", lambda: os.getpid())()
 cache_dir = os.environ.get("TORCHINDUCTOR_CACHE_DIR", f"/tmp/torchinductor_{uid}")
 os.environ["TORCHINDUCTOR_CACHE_DIR"] = cache_dir
@@ -15,9 +15,10 @@ os.environ.setdefault("USER", f"user{uid}")   # sidestep getpass.getuser()
 os.environ.setdefault("HOME", "/tmp")
 os.makedirs(cache_dir, exist_ok=True)
 
+# Compile the PyTorch attention for fair comparison
 @torch.compile
 def pytorch_attention_forward(Q, K, V, is_causal=True):
-    """Standard PyTorch attention implementation with proper gradient tracking"""
+    """Compiled PyTorch attention implementation"""
     d = Q.shape[-1]
     scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(d)
     
@@ -36,7 +37,7 @@ def clear_gpu_memory():
     torch.cuda.empty_cache()
 
 def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dtype, 
-                       warmup: int = 25, rep: int = 100) -> Dict[str, Optional[float]]:
+                       warmup: int = 10, rep: int = 50) -> Dict[str, Optional[float]]:
     """Benchmark forward and backward passes for both implementations"""
     
     results = {
@@ -59,9 +60,9 @@ def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dt
     
     # Generate random inputs
     try:
-        Q = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda', requires_grad=True)
-        K = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda', requires_grad=True)
-        V = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda', requires_grad=True)
+        Q = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda', requires_grad=False)
+        K = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda', requires_grad=False)
+        V = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda', requires_grad=False)
         dO = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda')
     except torch.cuda.OutOfMemoryError:
         print("  OOM during input generation")
@@ -72,10 +73,10 @@ def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dt
     # Benchmark FlashAttention Forward
     try:
         def flash_fwd():
-            Q_f = Q.clone().detach().requires_grad_(True)
-            K_f = K.clone().detach().requires_grad_(True)
-            V_f = V.clone().detach().requires_grad_(True)
-            return FlashAttention.apply(Q_f, K_f, V_f, True)
+            return FlashAttention.apply(Q, K, V, True)
+        
+        # Warmup run
+        _ = flash_fwd()
         
         results['flash_fwd'] = triton.testing.do_bench(
             flash_fwd, warmup=warmup, rep=rep
@@ -84,14 +85,17 @@ def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dt
         results['flash_fwd_oom'] = True
         print("  FlashAttention Forward: OOM")
         clear_gpu_memory()
+    except Exception as e:
+        print(f"  FlashAttention Forward Error: {e}")
+        results['flash_fwd'] = None
     
     # Benchmark PyTorch Forward
     try:
         def torch_fwd():
-            Q_t = Q.clone().detach().requires_grad_(True)
-            K_t = K.clone().detach().requires_grad_(True)
-            V_t = V.clone().detach().requires_grad_(True)
-            return pytorch_attention_forward(Q_t, K_t, V_t, True)
+            return pytorch_attention_forward(Q, K, V, True)
+        
+        # Warmup run
+        _ = torch_fwd()
         
         results['torch_fwd'] = triton.testing.do_bench(
             torch_fwd, warmup=warmup, rep=rep
@@ -100,6 +104,9 @@ def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dt
         results['torch_fwd_oom'] = True
         print("  PyTorch Forward: OOM")
         clear_gpu_memory()
+    except Exception as e:
+        print(f"  PyTorch Forward Error: {e}")
+        results['torch_fwd'] = None
     
     # ============ BACKWARD PASS BENCHMARKS ============
     
@@ -110,12 +117,17 @@ def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dt
         V_flash_bwd = V.clone().detach().requires_grad_(True)
         O_flash = FlashAttention.apply(Q_flash_bwd, K_flash_bwd, V_flash_bwd, True)
         
+        # Warmup backward
+        O_flash.backward(dO, retain_graph=True)
+        Q_flash_bwd.grad.zero_()
+        K_flash_bwd.grad.zero_()
+        V_flash_bwd.grad.zero_()
+        
         def flash_bwd():
-            if Q_flash_bwd.grad is not None:
-                Q_flash_bwd.grad.zero_()
-                K_flash_bwd.grad.zero_()
-                V_flash_bwd.grad.zero_()
             O_flash.backward(dO, retain_graph=True)
+            Q_flash_bwd.grad.zero_()
+            K_flash_bwd.grad.zero_()
+            V_flash_bwd.grad.zero_()
         
         results['flash_bwd'] = triton.testing.do_bench(
             flash_bwd, warmup=warmup, rep=rep
@@ -124,6 +136,22 @@ def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dt
         results['flash_bwd_oom'] = True
         print("  FlashAttention Backward: OOM")
         clear_gpu_memory()
+    except Exception as e:
+        print(f"  FlashAttention Backward Error: {e}")
+        results['flash_bwd'] = None
+    
+    # Clear memory before PyTorch backward
+    clear_gpu_memory()
+    
+    # Recreate inputs for PyTorch backward
+    try:
+        Q = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda', requires_grad=False)
+        K = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda', requires_grad=False)
+        V = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda', requires_grad=False)
+        dO = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda')
+    except torch.cuda.OutOfMemoryError:
+        print("  OOM during input recreation for PyTorch backward")
+        return results
     
     # Benchmark PyTorch Backward
     try:
@@ -132,12 +160,17 @@ def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dt
         V_torch_bwd = V.clone().detach().requires_grad_(True)
         O_torch = pytorch_attention_forward(Q_torch_bwd, K_torch_bwd, V_torch_bwd, True)
         
+        # Warmup backward
+        O_torch.backward(dO, retain_graph=True)
+        Q_torch_bwd.grad.zero_()
+        K_torch_bwd.grad.zero_()
+        V_torch_bwd.grad.zero_()
+        
         def torch_bwd():
-            if Q_torch_bwd.grad is not None:
-                Q_torch_bwd.grad.zero_()
-                K_torch_bwd.grad.zero_()
-                V_torch_bwd.grad.zero_()
             O_torch.backward(dO, retain_graph=True)
+            Q_torch_bwd.grad.zero_()
+            K_torch_bwd.grad.zero_()
+            V_torch_bwd.grad.zero_()
         
         results['torch_bwd'] = triton.testing.do_bench(
             torch_bwd, warmup=warmup, rep=rep
@@ -146,8 +179,23 @@ def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dt
         results['torch_bwd_oom'] = True
         print("  PyTorch Backward: OOM")
         clear_gpu_memory()
+    except Exception as e:
+        print(f"  PyTorch Backward Error: {e}")
+        results['torch_bwd'] = None
     
     # ============ END-TO-END BENCHMARKS ============
+    
+    # Clear and recreate for E2E benchmarks
+    clear_gpu_memory()
+    
+    try:
+        Q = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda', requires_grad=False)
+        K = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda', requires_grad=False)
+        V = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda', requires_grad=False)
+        dO = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda')
+    except torch.cuda.OutOfMemoryError:
+        print("  OOM during input recreation for E2E")
+        return results
     
     # Benchmark FlashAttention End-to-End
     try:
@@ -158,6 +206,9 @@ def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dt
             O = FlashAttention.apply(Q_e2e, K_e2e, V_e2e, True)
             O.backward(dO)
         
+        # Warmup
+        flash_e2e()
+        
         results['flash_e2e'] = triton.testing.do_bench(
             flash_e2e, warmup=warmup, rep=rep
         )
@@ -165,6 +216,9 @@ def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dt
         results['flash_e2e_oom'] = True
         print("  FlashAttention End-to-End: OOM")
         clear_gpu_memory()
+    except Exception as e:
+        print(f"  FlashAttention E2E Error: {e}")
+        results['flash_e2e'] = None
     
     # Benchmark PyTorch End-to-End
     try:
@@ -175,6 +229,9 @@ def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dt
             O = pytorch_attention_forward(Q_e2e, K_e2e, V_e2e, True)
             O.backward(dO)
         
+        # Warmup
+        torch_e2e()
+        
         results['torch_e2e'] = triton.testing.do_bench(
             torch_e2e, warmup=warmup, rep=rep
         )
@@ -182,6 +239,9 @@ def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dt
         results['torch_e2e_oom'] = True
         print("  PyTorch End-to-End: OOM")
         clear_gpu_memory()
+    except Exception as e:
+        print(f"  PyTorch E2E Error: {e}")
+        results['torch_e2e'] = None
     
     # Clear memory after benchmarks
     clear_gpu_memory()
@@ -200,22 +260,31 @@ def format_result(value, oom_flag):
 def main():
     """Run benchmarks and create results table"""
     
-    # Configuration
+    # Configuration - adjust these as needed
     batch_size = 1
     seq_lengths = [2**i for i in range(7, 17)]  # 128 to 65536
     dims = [2**i for i in range(4, 8)]  # 16 to 128
     dtypes = [torch.bfloat16, torch.float32]
     
+    # For debugging, you can reduce the scope:
+    # seq_lengths = [128, 256, 512, 1024]
+    # dims = [16, 32, 64, 128]
+    # dtypes = [torch.bfloat16]
+    
     # Store results
     all_results = []
+    total_configs = len(list(itertools.product(seq_lengths, dims, dtypes)))
     
     print("Running benchmarks...")
+    print(f"Total configurations to test: {total_configs}")
     print("-" * 80)
     
+    config_num = 0
     for seq_len, dim, dtype in itertools.product(seq_lengths, dims, dtypes):
+        config_num += 1
         dtype_str = "bf16" if dtype == torch.bfloat16 else "fp32"
         
-        print(f"Benchmarking: seq_len={seq_len}, dim={dim}, dtype={dtype_str}")
+        print(f"[{config_num}/{total_configs}] Benchmarking: seq_len={seq_len}, dim={dim}, dtype={dtype_str}")
         
         try:
             results = benchmark_attention(batch_size, seq_len, dim, dtype)
@@ -249,6 +318,14 @@ def main():
             }
             all_results.append(row)
             
+            # Print immediate feedback for debugging
+            print(f"  Forward: Flash={row['flash_fwd_ms']}, PyTorch={row['torch_fwd_ms']}, Speedup={row['fwd_speedup']}")
+            print(f"  Backward: Flash={row['flash_bwd_ms']}, PyTorch={row['torch_bwd_ms']}, Speedup={row['bwd_speedup']}")
+            print(f"  E2E: Flash={row['flash_e2e_ms']}, PyTorch={row['torch_e2e_ms']}, Speedup={row['e2e_speedup']}")
+            
+        except KeyboardInterrupt:
+            print("\nBenchmark interrupted by user")
+            break
         except Exception as e:
             print(f"  Unexpected error: {e}")
             continue
@@ -291,21 +368,40 @@ def main():
         print(f"\n--- {dtype.upper()} Results ---")
         dtype_df = df[df['dtype'] == dtype]
         
-        # Create a more compact display
-        display_cols = ['seq_len', 'dim', 'flash_fwd_ms', 'torch_fwd_ms', 'fwd_speedup',
-                       'flash_bwd_ms', 'torch_bwd_ms', 'bwd_speedup',
-                       'flash_e2e_ms', 'torch_e2e_ms', 'e2e_speedup']
-        
-        print(dtype_df[display_cols].to_string(index=False))
+        if not dtype_df.empty:
+            # Create a more compact display
+            display_cols = ['seq_len', 'dim', 'flash_fwd_ms', 'torch_fwd_ms', 'fwd_speedup',
+                           'flash_bwd_ms', 'torch_bwd_ms', 'bwd_speedup',
+                           'flash_e2e_ms', 'torch_e2e_ms', 'e2e_speedup']
+            
+            print(dtype_df[display_cols].to_string(index=False))
     
     # Save to CSV
     df.to_csv('flash_attention_benchmark_results.csv', index=False)
     print(f"\nResults saved to 'flash_attention_benchmark_results.csv'")
     
-    # Note about OOM entries
+    # Create a summary pivot table for better readability
+    print("\n" + "=" * 80)
+    print("SPEEDUP SUMMARY (Flash vs PyTorch)")
+    print("=" * 80)
+    
+    for dtype in ['bf16', 'fp32']:
+        dtype_df = df[df['dtype'] == dtype]
+        if not dtype_df.empty and len(dtype_df) > 1:
+            print(f"\n--- {dtype.upper()} End-to-End Speedup ---")
+            # Only create pivot if we have enough data
+            try:
+                # Convert speedup to numeric, replacing '-' with NaN
+                dtype_df['e2e_speedup_numeric'] = pd.to_numeric(dtype_df['e2e_speedup'].replace('-', None))
+                pivot = dtype_df.pivot_table(values='e2e_speedup_numeric', index='seq_len', columns='dim')
+                if not pivot.empty:
+                    print(pivot.round(2).to_string())
+            except:
+                print("  Not enough data for pivot table")
+    
     print("\n" + "=" * 80)
     print("Note: 'OOM' indicates Out-Of-Memory for that specific implementation")
-    print("'-' indicates the benchmark was skipped due to a prior OOM in the pipeline")
+    print("'-' indicates the benchmark was skipped due to a prior OOM or error")
 
 if __name__ == "__main__":
     main()
