@@ -27,6 +27,7 @@ def pytorch_attention(Q, K, V, is_causal=True):
 
 def benchmark_config(batch_size, seq_len, dim, dtype):
     """Benchmark one configuration - returns partial results on failure"""
+    warmup=100
     result = {
         'flash_fwd': None,
         'torch_fwd': None,
@@ -49,13 +50,13 @@ def benchmark_config(batch_size, seq_len, dim, dtype):
     
     # Try each benchmark independently
     try:
-        result['flash_fwd'] = triton.testing.do_bench(lambda: FlashAttention.apply(Q, K, V, True))
+        result['flash_fwd'] = triton.testing.do_bench(lambda: FlashAttention.apply(Q, K, V, True), warmup=warmup)
     except torch.cuda.OutOfMemoryError:
         print(f"    FlashAttention forward OOM")
         torch.cuda.empty_cache()
     
     try:
-        result['torch_fwd'] = triton.testing.do_bench(lambda: pytorch_attention(Q, K, V, True))
+        result['torch_fwd'] = triton.testing.do_bench(lambda: pytorch_attention(Q, K, V, True), warmup=warmup)
     except torch.cuda.OutOfMemoryError:
         print(f"    PyTorch forward OOM")
         torch.cuda.empty_cache()
@@ -68,7 +69,7 @@ def benchmark_config(batch_size, seq_len, dim, dtype):
             Ve = V.clone().requires_grad_(True)
             O = FlashAttention.apply(Qe, Ke, Ve, True)
             O.backward(dO)
-        result['flash_e2e'] = triton.testing.do_bench(flash_e2e)
+        result['flash_e2e'] = triton.testing.do_bench(flash_e2e, warmup=warmup)
     except torch.cuda.OutOfMemoryError:
         print(f"    FlashAttention e2e OOM")
         torch.cuda.empty_cache()
@@ -80,7 +81,7 @@ def benchmark_config(batch_size, seq_len, dim, dtype):
             Ve = V.clone().requires_grad_(True)
             O = pytorch_attention(Qe, Ke, Ve, True)
             O.backward(dO)
-        result['torch_e2e'] = triton.testing.do_bench(torch_e2e)
+        result['torch_e2e'] = triton.testing.do_bench(torch_e2e, warmup=warmup)
     except torch.cuda.OutOfMemoryError:
         print(f"    PyTorch e2e OOM")
         torch.cuda.empty_cache()
