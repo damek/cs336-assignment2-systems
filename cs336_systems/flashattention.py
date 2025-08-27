@@ -81,7 +81,7 @@ def flash_fwd_kernel(
         V_j = tl.load(V_block_ptr, boundary_check=(0,1), padding_option="zero")
         S = tl.dot(Q_i,tl.trans(K_j))*scale
         m_i_new = tl.maximum(m_i, tl.max(S, axis=-1))
-        tildeP = tl.exp(S - m_i_new.expand_dims(-1))
+        tildeP = tl.exp(S - m_i_new[:, None])
         exp_scale = tl.exp(m_i - m_i_new)
         l_i = exp_scale*l_i + tl.sum(tildeP, axis=-1)
         O_i = O_i*exp_scale[:, None]
