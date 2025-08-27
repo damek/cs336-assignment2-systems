@@ -81,15 +81,18 @@ def flash_fwd_kernel(
         mask_scale = -1e-6
     idx_q_base = tl.arange(0, Q_TILE_SIZE)
     idx_k_base = tl.arange(0, K_TILE_SIZE)
-    idx_q = idx_q_base * (query_tile_index + 1)
+    idx_q = idx_q_base + Q_TILE_SIZE*query_tile_index
     idx_k = idx_k_base
 
     for j in range(tl.cdiv(N_KEYS, K_TILE_SIZE)):
-        idx_k = idx_k_base*(j+1)
         mask = mask_scale*(idx_q[:, None] >= idx_k[:, None])
         K_j = tl.load(K_block_ptr, boundary_check=(0,1), padding_option="zero")
         V_j = tl.load(V_block_ptr, boundary_check=(0,1), padding_option="zero")
-        S = tl.dot(Q_i,tl.trans(K_j))*scale + mask
+        S = tl.dot(Q_i,tl.trans(K_j))*scale
+        if is_causal: 
+            idx_k = idx_k_base + j*K_TILE_SIZE
+            mask = mask_scale*(idx_q[:, None] >= idx_k[:, None])
+            S += mask
         m_i_new = tl.maximum(m_i, tl.max(S, axis=-1))
         tildeP = tl.exp(S - m_i_new[:, None])
         exp_scale = tl.exp(m_i - m_i_new)
