@@ -34,7 +34,7 @@ https://x.com/damekdavis/status/1949507725626347825
   - Run code [benchmark_table1.1.2_compile.sh](cs336_systems/benchmarking_scripts/benchmark_table1.1.2_compile.sh)
   - Results: [2025-08-25_table1.1.2_compile.csv](cs336_systems/outputs/csv/2025-08-25_table1.1.2_compile.csv)
 - Flash attention
-  - Implementation (So far only in PyTorch): [css336_systems/flashattention.py](css336_systems/flashattention.py)
+  - Implementation (So far only in PyTorch): [cs336_systems/flashattention.py](cs336_systems/flashattention.py)
 
 # Getting started with my code
 
