@@ -79,8 +79,8 @@ def flash_fwd_kernel(
     mask_scale = 0
     if is_causal:
         mask_scale = -1e-6
-    idx_q_base = tl.arrange(0, Q_TILE_SIZE)
-    idx_k_base = tl.arrange(0, K_TILE_SIZE)
+    idx_q_base = tl.arange(0, Q_TILE_SIZE)
+    idx_k_base = tl.arange(0, K_TILE_SIZE)
     idx_q = idx_q_base * (query_tile_index + 1)
     idx_k = idx_k_base
 
