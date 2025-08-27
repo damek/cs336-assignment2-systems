@@ -7,6 +7,7 @@ from typing import List, Tuple, Optional, Dict
 import itertools
 import gc
 from cs336_systems.flashattention import FlashAttention
+import cs336_basics.model as models
 
 uid = getattr(os, "getuid", lambda: os.getpid())()
 cache_dir = os.environ.get("TORCHINDUCTOR_CACHE_DIR", f"/tmp/torchinductor_{uid}")
@@ -18,12 +19,12 @@ os.makedirs(cache_dir, exist_ok=True)
 # Compile the PyTorch attention for fair comparison
 @torch.compile
 def pytorch_attention(Q, K, V, is_causal=True):
-    d = Q.shape[-1]
-    scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(d)
+    attention = models.scaled_dot_product_attention
+    seq_len = Q.shape[-2]
     if is_causal:
-        mask = torch.triu(torch.ones(scores.shape[-2:], device=Q.device), 1).bool()
-        scores.masked_fill_(mask, float('-inf'))
-    return torch.matmul(torch.softmax(scores, dim=-1), V)
+        mask = torch.triu(torch.ones((seq_len, seq_len), device=Q.device), 1).bool()
+        return attention(Q, K, V, mask=mask)
+    return attention(Q, K, V)
 
 def benchmark_config(batch_size, seq_len, dim, dtype):
     """Benchmark one configuration - returns partial results on failure"""
