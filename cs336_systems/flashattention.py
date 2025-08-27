@@ -70,10 +70,10 @@ def flash_fwd_kernel(
     order=(1, 0),
     )
 
-    m_i = tl.full(Q_TILE_SIZE, value=float('-inf'), dtype=tl.float32)
-    l_i = tl.zeros(Q_TILE_SIZE, dtype=tl.float32)
+    m_i = tl.full((Q_TILE_SIZE,), value=float('-inf'), dtype=tl.float32)
+    l_i = tl.zeros((Q_TILE_SIZE,), dtype=tl.float32)
     Q_i = tl.load(Q_block_ptr, boundary_check=(0,1), padding_option="zero")
-    O_i = tl.zeros(Q_TILE_SIZE, D, dtype=tl.float32)
+    O_i = tl.zeros((Q_TILE_SIZE, D), dtype=tl.float32)
     for j in range(tl.cdiv(N_KEYS, K_TILE_SIZE)):
         K_j = tl.load(K_block_ptr, boundary_check=(0,1), padding_option="zero")
         V_j = tl.load(V_block_ptr, boundary_check=(0,1), padding_option="zero")
