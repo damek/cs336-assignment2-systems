@@ -109,75 +109,23 @@ def flash_fwd_kernel(
     tl.store(L_block_ptr, l_i, boundary_check=(0,))
 
 
-# @torch.compile
-# def flash_attention_backward(Q, K, V, L, O, dO,sqrt_d,is_causal):
-#     D = (O * dO).sum(dim=-1, keepdim=True)
-#     S = einsum(Q, K, "... i d, ... j d -> ... i j")/sqrt_d
-#     if is_causal: 
-#         i = torch.arange(S.shape[-2], device=S.device)
-#         mask = i[None, :] > i[:, None]
-#         S = S.masked_fill(mask, float("-inf"))
-#     P = torch.exp(S - L.unsqueeze(-1))
-#     dV = einsum(P, dO, "... i j, ... i d -> ... j d")
-#     dP = einsum(dO, V, "... i d, ... j d -> ... i j")
-#     dS = P * (dP - D)
-#     dQ = einsum(dS, K, "... a b, ... b c-> ... a c")/sqrt_d
-#     dK = einsum(dS, Q, "... a b, ... a d -> ... b d")/sqrt_d
-
-#     return dQ, dK, dV, None
-
 @torch.compile
-def flash_attention_backward(Q, K, V, L, O, dO, sqrt_d, is_causal):
-    B_k = 2048
-    N = K.shape[-2]
-
-    # keep grads in the same dtype as inputs
-    dQ = torch.zeros_like(Q)
-    dK = torch.zeros_like(K)
-    dV = torch.zeros_like(V)
-
-    # ---- dtype fixes to keep Inductor happy ----
-    inv_sqrt_d = Q.new_tensor(1.0 / sqrt_d)     # same dtype/device as Q
-    L   = L.to(Q.dtype)
-    O   = O.to(Q.dtype)
-    dO  = dO.to(Q.dtype)
-    # -------------------------------------------
-
-    # D = sum_i dO_i * O_i (softmax backward identity)
-    D = (O * dO).sum(dim=-1, keepdim=True)      # [..., N, 1]
-
-    for j0 in range(0, N, B_k):
-        j1 = min(j0 + B_k, N)
-        K_j = K[..., j0:j1, :]
-        V_j = V[..., j0:j1, :]
-
-        # S: [..., N, Bk]
-        S = einsum(Q, K_j, "... i d, ... j d -> ... i j") * inv_sqrt_d
-
-        if is_causal:
-            # mask strictly upper-triangular entries for this K-tile
-            q_idx = torch.arange(S.shape[-2], device=S.device)
-            k_idx = torch.arange(j0, j1, device=S.device)
-            mask = (k_idx.unsqueeze(0) > q_idx.unsqueeze(1))  # [N, Bk]
-            S = S.masked_fill(mask.unsqueeze(0), float("-inf"))
-
-        # P using saved L for stability
-        P = torch.exp(S - L.unsqueeze(-1))      # [..., N, Bk]
-
-        # dV += P^T @ dO   (cast RHS to match destination dtype)
-        dV[..., j0:j1, :] += einsum(P, dO, "... i j, ... i d -> ... j d").to(dV.dtype)
-
-        # dS = P * (dP - D)  with dP = dO @ V_j^T
-        dP = einsum(dO, V_j, "... i d, ... j d -> ... i j")
-        dS = P * (dP - D)
-
-        # dQ += dS @ K_j / sqrt_d
-        dQ += (einsum(dS, K_j, "... a b, ... b c -> ... a c") * inv_sqrt_d).to(dQ.dtype)
-
-        # dK[..., j0:j1, :] += dS^T @ Q / sqrt_d
-        dK[..., j0:j1, :] += (einsum(dS, Q, "... a b, ... a d -> ... b d") * inv_sqrt_d).to(dK.dtype)
+def flash_attention_backward(Q, K, V, L, O, dO,sqrt_d,is_causal):
+    D = (O * dO).sum(dim=-1, keepdim=True)
+    S = einsum(Q, K, "... i d, ... j d -> ... i j")/sqrt_d
+    if is_causal: 
+        i = torch.arange(S.shape[-2], device=S.device)
+        mask = i[None, :] > i[:, None]
+        S = S.masked_fill(mask, float("-inf"))
+    P = torch.exp(S - L.unsqueeze(-1))
+    dV = einsum(P, dO, "... i j, ... i d -> ... j d")
+    dP = einsum(dO, V, "... i d, ... j d -> ... i j")
+    dS = P * (dP - D)
+    dQ = einsum(dS, K, "... a b, ... b c-> ... a c")/sqrt_d
+    dK = einsum(dS, Q, "... a b, ... a d -> ... b d")/sqrt_d
 
     return dQ, dK, dV, None
+
 
 class FlashAttention(torch.autograd.Function):
     @staticmethod
