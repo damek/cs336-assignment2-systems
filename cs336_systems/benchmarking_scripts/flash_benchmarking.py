@@ -72,7 +72,7 @@ def would_oom(N, dtype):
 
 for fwd in (attn_pytorch_forward, fa_triton_forward):
     Q, K, V = make_inputs(128, 64, torch.float32)
-    _ = fwd(Q, K, V, causal=True); _.sum().backward(torch.ones_like(_))
+    _ = fwd(Q, K, V, causal=True); _.backward(torch.ones_like(_))
 
 for dtype in dtypes:
     for D in Ds:
