@@ -1,133 +1,218 @@
-# Cowritten with gpt5.
-import math, itertools, torch, triton, os
-import triton.testing as tt
-import cs336_basics.model as models
+import torch
+import triton
+import triton.testing
+import math
 import pandas as pd
+from typing import List, Tuple
+import itertools
+
+# Import your FlashAttention implementation
 from cs336_systems.flashattention import FlashAttention
-import gc
 
-
-torch.backends.cuda.matmul.allow_tf32 = True
-torch.backends.cudnn.allow_tf32 = True
-torch.set_float32_matmul_precision("high")
-device = "cuda"
-
-uid = getattr(os, "getuid", lambda: os.getpid())()
-cache_dir = os.environ.get("TORCHINDUCTOR_CACHE_DIR", f"/tmp/torchinductor_{uid}")
-os.environ["TORCHINDUCTOR_CACHE_DIR"] = cache_dir
-os.environ.setdefault("USER", f"user{uid}")   # sidestep getpass.getuser()
-os.environ.setdefault("HOME", "/tmp")
-os.makedirs(cache_dir, exist_ok=True)
-
-
-def _cleanup_cuda():
-    if torch.cuda.is_available():
-        torch.cuda.synchronize()
-        torch.cuda.empty_cache()
-    gc.collect()
-
-def _run_and_bench(fn):
-    try:
-        return tt.do_bench(fn)
-    except torch.cuda.OutOfMemoryError:
-        _cleanup_cuda()
-        return None
-    except RuntimeError as e:
-        # older PyTorch sometimes throws plain RuntimeError with this text
-        if "out of memory" in str(e).lower():
-            _cleanup_cuda()
-            print("Out of memory")
-            return None
-        raise
-
-def attn_pytorch_forward(Q, K, V, *, is_causal=True):
-    # q,k,v: [1, N, D]
-    attention = models.scaled_dot_product_attention
-    # if compile:
-        # attention = torch.compile(attention)  
+def pytorch_attention(Q, K, V, is_causal=True):
+    """Standard PyTorch attention implementation"""
+    d = Q.shape[-1]
+    scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(d)
+    
     if is_causal:
-        i = torch.arange(Q.shape[-2], device=Q.device)
-        mask = i[None, :] > i[:, None]
-        return attention(Q, K, V, mask=mask)
-    else:
-        return attention(Q, K, V, mask=None)
+        seq_len = Q.shape[-2]
+        mask = torch.triu(torch.ones(seq_len, seq_len, device=Q.device), diagonal=1).bool()
+        scores.masked_fill_(mask, float('-inf'))
+    
+    attn = torch.softmax(scores, dim=-1)
+    out = torch.matmul(attn, V)
+    return out
 
-FA_Triton = FlashAttention
-def fa_triton_forward(Q, K, V, *, is_causal=True):
-    return FA_Triton.apply(Q, K, V,is_causal)
+class PytorchAttention(torch.autograd.Function):
+    """Wrapper for PyTorch attention with autograd support"""
+    @staticmethod
+    def forward(ctx, Q, K, V, is_causal=True):
+        ctx.save_for_backward(Q, K, V)
+        ctx.is_causal = is_causal
+        return pytorch_attention(Q, K, V, is_causal)
+    
+    @staticmethod
+    def backward(ctx, dO):
+        Q, K, V = ctx.saved_tensors
+        Q.requires_grad_(True)
+        K.requires_grad_(True)
+        V.requires_grad_(True)
+        
+        # Recompute forward for gradients
+        out = pytorch_attention(Q, K, V, ctx.is_causal)
+        out.backward(dO)
+        
+        return Q.grad, K.grad, V.grad, None
 
-def make_inputs(N, D, dtype):
-    Q = torch.randn(1, N, D, device=device, dtype=dtype, requires_grad=True)
-    K = torch.randn(1, N, D, device=device, dtype=dtype, requires_grad=True)
-    V = torch.randn(1, N, D, device=device, dtype=dtype, requires_grad=True)
-    return Q, K, V
+def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dtype, 
+                       warmup: int = 25, rep: int = 100) -> dict:
+    """Benchmark forward and backward passes for both implementations"""
+    
+    # Generate random inputs
+    Q = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda', requires_grad=True)
+    K = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda', requires_grad=True)
+    V = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda', requires_grad=True)
+    dO = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda')
+    
+    # Clone for fair comparison
+    Q_flash = Q.clone().detach().requires_grad_(True)
+    K_flash = K.clone().detach().requires_grad_(True)
+    V_flash = V.clone().detach().requires_grad_(True)
+    
+    Q_torch = Q.clone().detach().requires_grad_(True)
+    K_torch = K.clone().detach().requires_grad_(True)
+    V_torch = V.clone().detach().requires_grad_(True)
+    
+    results = {}
+    
+    # Benchmark FlashAttention Forward
+    def flash_fwd():
+        return FlashAttention.apply(Q_flash, K_flash, V_flash, True)
+    
+    results['flash_fwd'] = triton.testing.do_bench(
+        flash_fwd, warmup=warmup, rep=rep
+    )
+    
+    # Benchmark PyTorch Forward
+    def torch_fwd():
+        return PytorchAttention.apply(Q_torch, K_torch, V_torch, True)
+    
+    results['torch_fwd'] = triton.testing.do_bench(
+        torch_fwd, warmup=warmup, rep=rep
+    )
+    
+    # Benchmark FlashAttention Backward
+    O_flash = FlashAttention.apply(Q_flash, K_flash, V_flash, True)
+    def flash_bwd():
+        O_flash.backward(dO, retain_graph=True)
+    
+    results['flash_bwd'] = triton.testing.do_bench(
+        flash_bwd, warmup=warmup, rep=rep
+    )
+    
+    # Benchmark PyTorch Backward
+    O_torch = PytorchAttention.apply(Q_torch, K_torch, V_torch, True)
+    def torch_bwd():
+        O_torch.backward(dO, retain_graph=True)
+    
+    results['torch_bwd'] = triton.testing.do_bench(
+        torch_bwd, warmup=warmup, rep=rep
+    )
+    
+    # Benchmark End-to-End (Forward + Backward)
+    def flash_e2e():
+        Q_e2e = Q.clone().detach().requires_grad_(True)
+        K_e2e = K.clone().detach().requires_grad_(True)
+        V_e2e = V.clone().detach().requires_grad_(True)
+        O = FlashAttention.apply(Q_e2e, K_e2e, V_e2e, True)
+        O.backward(dO)
+    
+    results['flash_e2e'] = triton.testing.do_bench(
+        flash_e2e, warmup=warmup, rep=rep
+    )
+    
+    def torch_e2e():
+        Q_e2e = Q.clone().detach().requires_grad_(True)
+        K_e2e = K.clone().detach().requires_grad_(True)
+        V_e2e = V.clone().detach().requires_grad_(True)
+        O = PytorchAttention.apply(Q_e2e, K_e2e, V_e2e, True)
+        O.backward(dO)
+    
+    results['torch_e2e'] = triton.testing.do_bench(
+        torch_e2e, warmup=warmup, rep=rep
+    )
+    
+    return results
 
-def bench_forward(forward_impl, N, D, dtype, is_causal=True):
-    def run():
-        with torch.no_grad():
-            Q, K, V = make_inputs(N, D, dtype)
-            forward_impl(Q, K, V, is_causal=is_causal)
-    return _run_and_bench(run)
+def main():
+    """Run benchmarks and create results table"""
+    
+    # Configuration
+    batch_size = 1
+    seq_lengths = [2**i for i in range(7, 17)]  # 128 to 65536
+    dims = [2**i for i in range(4, 8)]  # 16 to 128
+    dtypes = [torch.bfloat16, torch.float32]
+    
+    # Store results
+    all_results = []
+    
+    print("Running benchmarks...")
+    print("-" * 80)
+    
+    for seq_len, dim, dtype in itertools.product(seq_lengths, dims, dtypes):
+        dtype_str = "bf16" if dtype == torch.bfloat16 else "fp32"
+        
+        try:
+            print(f"Benchmarking: seq_len={seq_len}, dim={dim}, dtype={dtype_str}")
+            
+            results = benchmark_attention(batch_size, seq_len, dim, dtype)
+            
+            # Store results with configuration
+            row = {
+                'seq_len': seq_len,
+                'dim': dim,
+                'dtype': dtype_str,
+                'flash_fwd_ms': results['flash_fwd'],
+                'torch_fwd_ms': results['torch_fwd'],
+                'flash_bwd_ms': results['flash_bwd'],
+                'torch_bwd_ms': results['torch_bwd'],
+                'flash_e2e_ms': results['flash_e2e'],
+                'torch_e2e_ms': results['torch_e2e'],
+                'fwd_speedup': results['torch_fwd'] / results['flash_fwd'],
+                'bwd_speedup': results['torch_bwd'] / results['flash_bwd'],
+                'e2e_speedup': results['torch_e2e'] / results['flash_e2e']
+            }
+            all_results.append(row)
+            
+        except Exception as e:
+            print(f"  Skipped due to error: {e}")
+            continue
+    
+    # Create DataFrame and save results
+    df = pd.DataFrame(all_results)
+    
+    # Format for display
+    df_display = df.round(3)
+    
+    print("\n" + "=" * 80)
+    print("BENCHMARK RESULTS")
+    print("=" * 80)
+    print("\nSummary Statistics:")
+    print("-" * 40)
+    print(f"Mean Forward Speedup: {df['fwd_speedup'].mean():.2f}x")
+    print(f"Mean Backward Speedup: {df['bwd_speedup'].mean():.2f}x")
+    print(f"Mean End-to-End Speedup: {df['e2e_speedup'].mean():.2f}x")
+    
+    print("\n" + "=" * 80)
+    print("DETAILED RESULTS TABLE")
+    print("=" * 80)
+    
+    # Display table grouped by dtype
+    for dtype in ['bf16', 'fp32']:
+        print(f"\n--- {dtype.upper()} Results ---")
+        dtype_df = df_display[df_display['dtype'] == dtype]
+        
+        # Create a more compact display
+        display_cols = ['seq_len', 'dim', 'flash_fwd_ms', 'torch_fwd_ms', 'fwd_speedup',
+                       'flash_bwd_ms', 'torch_bwd_ms', 'bwd_speedup',
+                       'flash_e2e_ms', 'torch_e2e_ms', 'e2e_speedup']
+        
+        print(dtype_df[display_cols].to_string(index=False))
+    
+    # Save to CSV
+    df.to_csv('flash_attention_benchmark_results.csv', index=False)
+    print(f"\nResults saved to 'flash_attention_benchmark_results.csv'")
+    
+    # Create a summary pivot table for better readability
+    print("\n" + "=" * 80)
+    print("SPEEDUP SUMMARY (Flash vs PyTorch)")
+    print("=" * 80)
+    
+    for dtype in ['bf16', 'fp32']:
+        print(f"\n--- {dtype.upper()} End-to-End Speedup ---")
+        dtype_df = df[df['dtype'] == dtype]
+        pivot = dtype_df.pivot_table(values='e2e_speedup', index='seq_len', columns='dim')
+        print(pivot.round(2).to_string())
 
-def bench_backward(forward_impl, N, D, dtype, is_causal=True):
-    # Build the graph once, OUTSIDE timing
-    Q, K, V = make_inputs(N, D, dtype)
-    O = forward_impl(Q, K, V, is_causal=is_causal)
-    dO = torch.randn_like(O)
-
-    # Time ONLY the backward on the same graph
-    def run():
-        # autograd.grad returns grads and does NOT accumulate into .grad
-        torch.autograd.grad((O,), (Q, K, V), (dO,), retain_graph=True)
-    return _run_and_bench(run)
-
-def bench_end2end(forward_impl, N, D, dtype, is_causal=True):
-    def run():
-        Q, K, V = make_inputs(N, D, dtype)
-        O = forward_impl(Q, K, V, is_causal=is_causal)
-        dO = torch.randn_like(O)
-        O.backward(dO, retain_graph=False)
-    return _run_and_bench(run)
-
-Ns = [2**n for n in range(7, 17)]           # 128 .. 65536
-Ds = [16, 32, 64, 128]
-dtypes = [torch.bfloat16, torch.float32]
-rows = []
-
-def would_oom(N, dtype):
-    bytes_per = 2 if dtype is torch.bfloat16 else 4
-    return (3 * N * N * bytes_per) > (70 * 2**30)  
-
-for fwd in (attn_pytorch_forward, fa_triton_forward):
-    Q, K, V = make_inputs(128, 64, torch.float32)
-    _ = fwd(Q, K, V, is_causal=True); _.sum().backward()
-
-count = 0
-for dtype in dtypes:
-    for D in Ds:
-        for N in Ns:
-            count+=1
-            print("N, D, dtype", N, D, dtype)
-            print(f"Setting {count} of {len(Ns)*len(Ds)*len(dtypes)}")
-            if would_oom(N, dtype):
-                continue
-            # PyTorch baseline
-            pt_fwd = bench_forward(attn_pytorch_forward, N, D, dtype, is_causal=True)
-            pt_bwd = bench_backward(attn_pytorch_forward, N, D, dtype, is_causal=True)
-            pt_end = bench_end2end(attn_pytorch_forward, N, D, dtype, is_causal=True)
-            # Triton FA-2
-            fa_fwd = bench_forward(fa_triton_forward, N, D, dtype, is_causal=True)
-            fa_bwd = bench_backward(fa_triton_forward, N, D, dtype, is_causal=True)
-            fa_end = bench_end2end(fa_triton_forward, N, D, dtype, is_causal=True)
-
-            rows.append(dict(
-                N=N, D=D, dtype=str(dtype).split(".")[-1],
-                pt_fwd_ms=pt_fwd, pt_bwd_ms=pt_bwd, pt_end_ms=pt_end,
-                fa_fwd_ms=fa_fwd, fa_bwd_ms=fa_bwd, fa_end_ms=fa_end,
-                fwd_speedup=pt_fwd / fa_fwd if fa_fwd else float("inf"),
-                bwd_speedup=pt_bwd / fa_bwd if fa_bwd else float("inf"),
-                end_speedup=pt_end / fa_end if fa_end else float("inf"),
-            ))
-
-df = pd.DataFrame(rows)
-print(df.to_string(index=False))
+if __name__ == "__main__":
+    main()
