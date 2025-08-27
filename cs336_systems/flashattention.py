@@ -154,7 +154,7 @@ class FlashAttention(torch.autograd.Function):
         ctx.is_causal = is_causal
         ctx.sqrt_d = math.sqrt(d)
         return O
-    
+    @torch.compile
     def backward(ctx, dO):
         Q,K,V,L,O = ctx.saved_tensors
         D = (O * dO).sum(dim=-1, keepdim=True)
