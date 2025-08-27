@@ -27,7 +27,7 @@ def pytorch_attention(Q, K, V, is_causal=True):
 
 def benchmark_config(batch_size, seq_len, dim, dtype):
     """Benchmark one configuration - returns partial results on failure"""
-    warmup=100
+    warmup=1000
     result = {
         'flash_fwd': None,
         'torch_fwd': None,
