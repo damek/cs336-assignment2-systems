@@ -163,7 +163,7 @@ class FlashAttention(torch.autograd.Function):
         if ctx.is_causal: 
             i = torch.arange(Q.shape[0], device=S.device)
             mask = i[None, :] > i[:, None]
-            S = S*mask.unsqueeze(-1)
+            S = S - 1e6*mask.unsqueeze(-1)
         P = torch.exp(S - L.unsqueeze(-1))
         dV = einsum(P, dO, "... i j, ... i d -> ... j d")
         dP = einsum(dO, V, "... i d, ... j d -> ... i j")
