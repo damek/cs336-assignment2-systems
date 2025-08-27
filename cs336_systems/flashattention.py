@@ -112,8 +112,8 @@ class FlashAttention(torch.autograd.Function):
         d = Q.shape[-1]
         device = "cuda"
         # O_i = torch.empty(*Q.shape[:-2],B_q, d, device= device)
-        O = torch.empty(Q.shape, device=Q.device, dtype=Q.dtype)
-        L = torch.empty(Q.shape[:-1], device=Q.device, dtype=Q.dtype)
+        O = torch.empty(Q.shape, device=Q.device)
+        L = torch.empty(Q.shape[:-1], device=Q.device)
         batch_size = Q.shape[0]
         N_QUERIES = Q.shape[-2]
         N_KEYS = K.shape[-2]
@@ -165,7 +165,7 @@ class FlashAttention(torch.autograd.Function):
             S = S.masked_fill(mask, float("-inf"))
         P = torch.exp(S - L.unsqueeze(-1))
         dV = einsum(P, dO, "... i j, ... i d -> ... j d")
-        dP = einsum(dO, V, "... i d, ... j d -> ... i j")
+        dP = einsum(dO.to(V.dtype), V, "... i d, ... j d -> ... i j")
         dS = P * (dP - D)
         dQ = einsum(dS, K, "... a b, ... b c-> ... a c")/ctx.sqrt_d
         dK = einsum(dS, Q, "... a b, ... a d -> ... b d")/ctx.sqrt_d
