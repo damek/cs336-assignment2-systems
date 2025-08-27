@@ -32,7 +32,7 @@ def attn_pytorch_forward(Q, K, V, *, is_causal=True):
 
 FA_Triton = FlashAttention
 def fa_triton_forward(Q, K, V, *, is_causal=True):
-    return FA_Triton.apply(Q, K, V, is_causal=is_causal)
+    return FA_Triton.apply(Q, K, V,is_causal)
 
 def make_inputs(N, D, dtype):
     Q = torch.randn(1, N, D, device=device, dtype=dtype, requires_grad=True)
