@@ -163,7 +163,6 @@ class FlashAttention(torch.autograd.Function):
         if ctx.is_causal: 
             i = torch.arange(S.shape[-2], device=S.device)
             mask = i[None, :] > i[:, None]
-            # S = S - 1e6*mask.unsqueeze(-1)
             S = S.masked_fill(mask, float("-inf"))
         P = torch.exp(S - L.unsqueeze(-1))
         dV = einsum(P, dO, "... i j, ... i d -> ... j d")
