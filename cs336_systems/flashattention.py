@@ -79,6 +79,7 @@ def flash_fwd_kernel(
     idx_k_base = tl.arange(0, K_TILE_SIZE)
     idx_q = idx_q_base + Q_TILE_SIZE*query_tile_index
     idx_k = idx_k_base
+    mask_scale = 1e-6
 
     for j in range(tl.cdiv(N_KEYS, K_TILE_SIZE)):
         mask = mask_scale*(idx_q[:, None] >= idx_k[:, None])
