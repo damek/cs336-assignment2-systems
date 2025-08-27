@@ -133,9 +133,9 @@ class FlashAttention(torch.autograd.Function):
             stride_lb, stride_lq,
             N_QUERIES, N_KEYS,
             scale,
-            D: tl.constexpr,
-            Q_TILE_SIZE: tl.constexpr,
-            K_TILE_SIZE: tl.constexpr,
+            D,
+            Q_TILE_SIZE,
+            K_TILE_SIZE,
             )
         ctx.save_for_backward(Q,K,V,L,O)
         return O
