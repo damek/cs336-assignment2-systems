@@ -9,8 +9,8 @@ import itertools
 # Import your FlashAttention implementation
 from cs336_systems.flashattention import FlashAttention
 
-def pytorch_attention(Q, K, V, is_causal=True):
-    """Standard PyTorch attention implementation"""
+def pytorch_attention_forward(Q, K, V, is_causal=True):
+    """Standard PyTorch attention implementation with proper gradient tracking"""
     d = Q.shape[-1]
     scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(d)
     
@@ -23,27 +23,6 @@ def pytorch_attention(Q, K, V, is_causal=True):
     out = torch.matmul(attn, V)
     return out
 
-class PytorchAttention(torch.autograd.Function):
-    """Wrapper for PyTorch attention with autograd support"""
-    @staticmethod
-    def forward(ctx, Q, K, V, is_causal=True):
-        ctx.save_for_backward(Q, K, V)
-        ctx.is_causal = is_causal
-        return pytorch_attention(Q, K, V, is_causal)
-    
-    @staticmethod
-    def backward(ctx, dO):
-        Q, K, V = ctx.saved_tensors
-        Q.requires_grad_(True)
-        K.requires_grad_(True)
-        V.requires_grad_(True)
-        
-        # Recompute forward for gradients
-        out = pytorch_attention(Q, K, V, ctx.is_causal)
-        out.backward(dO)
-        
-        return Q.grad, K.grad, V.grad, None
-
 def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dtype, 
                        warmup: int = 25, rep: int = 100) -> dict:
     """Benchmark forward and backward passes for both implementations"""
@@ -54,20 +33,16 @@ def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dt
     V = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda', requires_grad=True)
     dO = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda')
     
-    # Clone for fair comparison
-    Q_flash = Q.clone().detach().requires_grad_(True)
-    K_flash = K.clone().detach().requires_grad_(True)
-    V_flash = V.clone().detach().requires_grad_(True)
-    
-    Q_torch = Q.clone().detach().requires_grad_(True)
-    K_torch = K.clone().detach().requires_grad_(True)
-    V_torch = V.clone().detach().requires_grad_(True)
-    
     results = {}
+    
+    # ============ FORWARD PASS BENCHMARKS ============
     
     # Benchmark FlashAttention Forward
     def flash_fwd():
-        return FlashAttention.apply(Q_flash, K_flash, V_flash, True)
+        Q_f = Q.clone().detach().requires_grad_(True)
+        K_f = K.clone().detach().requires_grad_(True)
+        V_f = V.clone().detach().requires_grad_(True)
+        return FlashAttention.apply(Q_f, K_f, V_f, True)
     
     results['flash_fwd'] = triton.testing.do_bench(
         flash_fwd, warmup=warmup, rep=rep
@@ -75,15 +50,30 @@ def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dt
     
     # Benchmark PyTorch Forward
     def torch_fwd():
-        return PytorchAttention.apply(Q_torch, K_torch, V_torch, True)
+        Q_t = Q.clone().detach().requires_grad_(True)
+        K_t = K.clone().detach().requires_grad_(True)
+        V_t = V.clone().detach().requires_grad_(True)
+        return pytorch_attention_forward(Q_t, K_t, V_t, True)
     
     results['torch_fwd'] = triton.testing.do_bench(
         torch_fwd, warmup=warmup, rep=rep
     )
     
+    # ============ BACKWARD PASS BENCHMARKS ============
+    
     # Benchmark FlashAttention Backward
-    O_flash = FlashAttention.apply(Q_flash, K_flash, V_flash, True)
+    # First create the forward pass output that we'll use for backward
+    Q_flash_bwd = Q.clone().detach().requires_grad_(True)
+    K_flash_bwd = K.clone().detach().requires_grad_(True)
+    V_flash_bwd = V.clone().detach().requires_grad_(True)
+    O_flash = FlashAttention.apply(Q_flash_bwd, K_flash_bwd, V_flash_bwd, True)
+    
     def flash_bwd():
+        # Use retain_graph since we're calling backward multiple times
+        if Q_flash_bwd.grad is not None:
+            Q_flash_bwd.grad.zero_()
+            K_flash_bwd.grad.zero_()
+            V_flash_bwd.grad.zero_()
         O_flash.backward(dO, retain_graph=True)
     
     results['flash_bwd'] = triton.testing.do_bench(
@@ -91,15 +81,26 @@ def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dt
     )
     
     # Benchmark PyTorch Backward
-    O_torch = PytorchAttention.apply(Q_torch, K_torch, V_torch, True)
+    Q_torch_bwd = Q.clone().detach().requires_grad_(True)
+    K_torch_bwd = K.clone().detach().requires_grad_(True)
+    V_torch_bwd = V.clone().detach().requires_grad_(True)
+    O_torch = pytorch_attention_forward(Q_torch_bwd, K_torch_bwd, V_torch_bwd, True)
+    
     def torch_bwd():
+        # Use retain_graph since we're calling backward multiple times
+        if Q_torch_bwd.grad is not None:
+            Q_torch_bwd.grad.zero_()
+            K_torch_bwd.grad.zero_()
+            V_torch_bwd.grad.zero_()
         O_torch.backward(dO, retain_graph=True)
     
     results['torch_bwd'] = triton.testing.do_bench(
         torch_bwd, warmup=warmup, rep=rep
     )
     
-    # Benchmark End-to-End (Forward + Backward)
+    # ============ END-TO-END BENCHMARKS ============
+    
+    # Benchmark FlashAttention End-to-End
     def flash_e2e():
         Q_e2e = Q.clone().detach().requires_grad_(True)
         K_e2e = K.clone().detach().requires_grad_(True)
@@ -111,11 +112,12 @@ def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dt
         flash_e2e, warmup=warmup, rep=rep
     )
     
+    # Benchmark PyTorch End-to-End
     def torch_e2e():
         Q_e2e = Q.clone().detach().requires_grad_(True)
         K_e2e = K.clone().detach().requires_grad_(True)
         V_e2e = V.clone().detach().requires_grad_(True)
-        O = PytorchAttention.apply(Q_e2e, K_e2e, V_e2e, True)
+        O = pytorch_attention_forward(Q_e2e, K_e2e, V_e2e, True)
         O.backward(dO)
     
     results['torch_e2e'] = triton.testing.do_bench(
