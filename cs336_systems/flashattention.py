@@ -73,12 +73,8 @@ def flash_fwd_kernel(
 
     m_i = tl.full((Q_TILE_SIZE,), value=float('-inf'), dtype=tl.float32)
     l_i = tl.zeros((Q_TILE_SIZE,), dtype=tl.float32)
-    mask = tl.zeros((Q_TILE_SIZE, K_TILE_SIZE), dtype=tl.float32,)
     Q_i = tl.load(Q_block_ptr, boundary_check=(0,1), padding_option="zero")
     O_i = tl.zeros((Q_TILE_SIZE, D), dtype=tl.float32)
-    mask_scale = 0
-    if is_causal:
-        mask_scale = -1e-6
     idx_q_base = tl.arange(0, Q_TILE_SIZE)
     idx_k_base = tl.arange(0, K_TILE_SIZE)
     idx_q = idx_q_base + Q_TILE_SIZE*query_tile_index
