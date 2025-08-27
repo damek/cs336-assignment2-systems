@@ -17,7 +17,26 @@ os.environ.setdefault("USER", f"user{uid}")   # sidestep getpass.getuser()
 os.environ.setdefault("HOME", "/tmp")
 os.makedirs(cache_dir, exist_ok=True)
 
-# --- Baseline PyTorch attention (forward) ---
+
+def _cleanup_cuda():
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+        torch.cuda.empty_cache()
+    gc.collect()
+
+def _run_and_bench(fn):
+    try:
+        return tt.do_bench(fn)
+    except torch.cuda.OutOfMemoryError:
+        _cleanup_cuda()
+        return None
+    except RuntimeError as e:
+        # older PyTorch sometimes throws plain RuntimeError with this text
+        if "out of memory" in str(e).lower():
+            _cleanup_cuda()
+            return None
+        raise
+
 def attn_pytorch_forward(Q, K, V, *, is_causal=True):
     # q,k,v: [1, N, D]
     attention = models.scaled_dot_product_attention
@@ -45,7 +64,7 @@ def bench_forward(forward_impl, N, D, dtype, is_causal=True):
         with torch.no_grad():
             Q, K, V = make_inputs(N, D, dtype)
             forward_impl(Q, K, V, is_causal=is_causal)
-    return tt.do_bench(run)
+    return _run_and_bench(run)
 
 def bench_backward(forward_impl, N, D, dtype, is_causal=True):
     def run():
@@ -53,7 +72,7 @@ def bench_backward(forward_impl, N, D, dtype, is_causal=True):
         O = forward_impl(Q, K, V, is_causal=is_causal)
         dO = torch.randn_like(O)
         O.backward(dO, retain_graph=False)
-    return tt.do_bench(run)
+    return _run_and_bench(run)
 
 def bench_end2end(forward_impl, N, D, dtype, is_causal=True):
     def run():
@@ -61,7 +80,7 @@ def bench_end2end(forward_impl, N, D, dtype, is_causal=True):
         O = forward_impl(Q, K, V, is_causal=is_causal)
         dO = torch.randn_like(O)
         O.backward(dO, retain_graph=False)
-    return tt.do_bench(run)
+    return _run_and_bench(run)
 
 Ns = [2**n for n in range(7, 17)]           # 128 .. 65536
 Ds = [16, 32, 64, 128]
