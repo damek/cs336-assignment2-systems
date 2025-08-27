@@ -21,8 +21,8 @@ os.makedirs(cache_dir, exist_ok=True)
 def attn_pytorch_forward(Q, K, V, *, causal=True):
     # q,k,v: [1, N, D]
     attention = models.scaled_dot_product_attention
-    if compile:
-        attention = torch.compile(attention)  
+    # if compile:
+        # attention = torch.compile(attention)  
     if causal:
         i = torch.arange(Q.shape[-2], device=Q.device)
         mask = i[None, :] > i[:, None]
