@@ -179,10 +179,8 @@ class FlashAttention(torch.autograd.Function):
         return O
     @staticmethod
     def backward(ctx, dO):
-        return flash_attention_backward(ctx.Q, ctx.K, ctx.V, ctx.L, ctx.O, dO, ctx.sqrt_d, ctx.is_causal)
-
-        return dQ, dK, dV, None
-
+        Q, K, V, L, O = ctx.saved_tensors
+        return flash_attention_backward(Q, K, V, L, O, dO, ctx.sqrt_d, ctx.is_causal)
 
 
 
