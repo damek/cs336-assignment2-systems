@@ -123,7 +123,7 @@ class FlashAttention(torch.autograd.Function):
         Q_TILE_SIZE = B_q
         K_TILE_SIZE = B_k
         D = d
-        flash_fwd_kernel[(batch_size, tl.cdiv(N_QUERIES, B_q))](
+        flash_fwd_kernel[(batch_size, torch.cdiv(N_QUERIES, B_q))](
             Q, K, V,
             O, L,
             stride_qb, stride_qq, stride_qd,
