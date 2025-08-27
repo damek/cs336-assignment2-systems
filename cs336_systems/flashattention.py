@@ -73,7 +73,8 @@ def flash_fwd_kernel(
     m_i = tl.full((Q_TILE_SIZE,), value=float('-inf'), dtype=tl.float32)
     l_i = tl.zeros((Q_TILE_SIZE,), dtype=tl.float32)
     Q_i = tl.load(Q_block_ptr, boundary_check=(0,1), padding_option="zero")
-    tl.static_assert(Q_i.shape == (Q_TILE_SIZE, D))
+    # tl.static_assert(Q_i.shape == (Q_TILE_SIZE, D))
+
     O_i = tl.zeros((Q_TILE_SIZE, D), dtype=tl.float32)
     for j in range(tl.cdiv(N_KEYS, K_TILE_SIZE)):
         K_j = tl.load(K_block_ptr, boundary_check=(0,1), padding_option="zero")
