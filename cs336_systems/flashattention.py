@@ -155,9 +155,23 @@ class FlashAttention(torch.autograd.Function):
         ctx.is_causal = is_causal
         return O
     
-    def backward(ctx, Q, K, V, O, dO, L):
-        
-        raise NotImplementedError
+    def backward(ctx, dO):
+        Q,K,V,L,O = ctx.saved_tensors
+        D = (O * dO).sum(dim=-1, keepdim=True)
+        S = einsum(Q, K, "... i d, ... j d -> ... i j")/ctx.sqrt_d
+        if ctx.is_causal: 
+            i = torch.arange(Q.shape[0], device=S.device)
+            mask = i[None, :] > i[:, None]
+            S = S*mask.unsqueeze(-1)
+        P = torch.exp(S - L.unsqueeze(-1))
+        dV = einsum(P, dO, "... i j, ... i d -> ... j d")
+        dP = einsum(dO, V, "... i d, ... j d -> ... i j")
+        dS = P * (dP - D)
+        dQ = einsum(dS, K, "... a b, ... b c-> ... a c")/ctx.sqrt_d
+        dK = einsum(dS, Q, "... a b, ... a d -> ... b d")/ctx.sqrt_d
+
+        return dQ, dK, dV, None
+
 
 
 
