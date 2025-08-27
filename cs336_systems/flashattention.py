@@ -86,7 +86,7 @@ def flash_fwd_kernel(
         S = tl.dot(Q_i,tl.trans(K_j))*scale
         if is_causal: 
             idx_k = idx_k_base + j*K_TILE_SIZE
-            mask = mask_scale*(idx_q[:, None] >= idx_k[:, None])
+            mask = mask_scale*(idx_q[:, None] < idx_k[:, None])
             S += mask
         m_i_new = tl.maximum(m_i, tl.max(S, axis=-1))
         tildeP = tl.exp(S - m_i_new[:, None])
