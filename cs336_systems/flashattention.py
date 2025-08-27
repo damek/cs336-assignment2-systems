@@ -161,7 +161,7 @@ class FlashAttention(torch.autograd.Function):
         D = (O * dO).sum(dim=-1, keepdim=True)
         S = einsum(Q, K, "... i d, ... j d -> ... i j")/ctx.sqrt_d
         if ctx.is_causal: 
-            i = torch.arange(Q.shape[0], device=S.device)
+            i = torch.arange(S.shape[-2], device=S.device)
             mask = i[None, :] > i[:, None]
             # S = S - 1e6*mask.unsqueeze(-1)
             S = S.masked_fill(mask, float("-inf"))
