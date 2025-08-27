@@ -126,6 +126,7 @@ class FlashAttention(torch.autograd.Function):
         stride_od = O.stride(2)
         stride_lb = L.stride(0)
         stride_lq = L.stride(1)
+        print("D", D)
         flash_fwd_kernel[(T_q, batch_size)](
             Q, K, V,
             O, L,
