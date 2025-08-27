@@ -83,7 +83,7 @@ def flash_fwd_kernel(
     idx_k = tl.arange(0, N_KEYS)
 
     for j in range(tl.cdiv(N_KEYS, K_TILE_SIZE)):
-        mask = mask_scale*(idx_q[:, None] >= j*K_TILE_SIZE:(j+1)*K_TILE_SIZE)
+        mask = mask_scale*(idx_q[:, None] >= idx_k[j*K_TILE_SIZE:(j+1)*K_TILE_SIZE, None])
         K_j = tl.load(K_block_ptr, boundary_check=(0,1), padding_option="zero")
         V_j = tl.load(V_block_ptr, boundary_check=(0,1), padding_option="zero")
         S = tl.dot(Q_i,tl.trans(K_j))*scale + mask
