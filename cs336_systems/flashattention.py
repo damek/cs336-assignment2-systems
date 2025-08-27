@@ -129,7 +129,7 @@ def flash_fwd_kernel(
 @torch.compile 
 def flash_attention_backward(Q, K, V, L, O, dO, sqrt_d, is_causal):
     # chunk size for keys/values (tune if you like; keeps memory bounded)
-    B_k = 128
+    B_k = 16
     N = K.shape[-2]
 
     # grads we will accumulate into
