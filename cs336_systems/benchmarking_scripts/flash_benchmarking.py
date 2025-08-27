@@ -18,12 +18,12 @@ os.environ.setdefault("HOME", "/tmp")
 os.makedirs(cache_dir, exist_ok=True)
 
 # --- Baseline PyTorch attention (forward) ---
-def attn_pytorch_forward(Q, K, V, *, causal=True):
+def attn_pytorch_forward(Q, K, V, *, is_causal=True):
     # q,k,v: [1, N, D]
     attention = models.scaled_dot_product_attention
     # if compile:
         # attention = torch.compile(attention)  
-    if causal:
+    if is_causal:
         i = torch.arange(Q.shape[-2], device=Q.device)
         mask = i[None, :] > i[:, None]
         return attention(Q, K, V, mask=mask)
@@ -31,8 +31,8 @@ def attn_pytorch_forward(Q, K, V, *, causal=True):
         return attention(Q, K, V, mask=None)
 
 FA_Triton = FlashAttention
-def fa_triton_forward(Q, K, V, *, causal=True):
-    return FA_Triton.apply(Q, K, V, is_causal=causal)
+def fa_triton_forward(Q, K, V, *, is_causal=True):
+    return FA_Triton.apply(Q, K, V, is_causal=is_causal)
 
 def make_inputs(N, D, dtype):
     Q = torch.randn(1, N, D, device=device, dtype=dtype, requires_grad=True)
@@ -40,23 +40,23 @@ def make_inputs(N, D, dtype):
     V = torch.randn(1, N, D, device=device, dtype=dtype, requires_grad=True)
     return Q, K, V
 
-def bench_forward(forward_impl, N, D, dtype, causal=True):
+def bench_forward(forward_impl, N, D, dtype, is_causal=True):
     Q, K, V = make_inputs(N, D, dtype)
-    fn = lambda: torch.no_grad().__enter__() or forward_impl(Q, K, V, causal=causal)
+    fn = lambda: torch.no_grad().__enter__() or forward_impl(Q, K, V, is_causal=is_causal)
     return tt.do_bench(fn)
 
-def bench_backward(forward_impl, N, D, dtype, causal=True):
+def bench_backward(forward_impl, N, D, dtype, is_causal=True):
     def run():
         Q, K, V = make_inputs(N, D, dtype)
-        O = forward_impl(Q, K, V, causal=causal)
+        O = forward_impl(Q, K, V, is_causal=is_causal)
         dO = torch.randn_like(O)
         O.backward(dO, retain_graph=False)
     return tt.do_bench(run)
 
-def bench_end2end(forward_impl, N, D, dtype, causal=True):
+def bench_end2end(forward_impl, N, D, dtype, is_causal=True):
     def run():
         Q, K, V = make_inputs(N, D, dtype)
-        O = forward_impl(Q, K, V, causal=causal)
+        O = forward_impl(Q, K, V, is_causal=is_causal)
         dO = torch.randn_like(O)
         O.backward(dO, retain_graph=False)
     return tt.do_bench(run)
@@ -72,7 +72,7 @@ def would_oom(N, dtype):
 
 for fwd in (attn_pytorch_forward, fa_triton_forward):
     Q, K, V = make_inputs(128, 64, torch.float32)
-    _ = fwd(Q, K, V, causal=True); _.backward(torch.ones_like(_))
+    _ = fwd(Q, K, V, is_causal=True); _.backward(torch.ones_like(_))
 
 for dtype in dtypes:
     for D in Ds:
@@ -80,13 +80,13 @@ for dtype in dtypes:
             if would_oom(N, dtype):
                 continue
             # PyTorch baseline
-            pt_fwd = bench_forward(attn_pytorch_forward, N, D, dtype, causal=True)
-            pt_bwd = bench_backward(attn_pytorch_forward, N, D, dtype, causal=True)
-            pt_end = bench_end2end(attn_pytorch_forward, N, D, dtype, causal=True)
+            pt_fwd = bench_forward(attn_pytorch_forward, N, D, dtype, is_causal=True)
+            pt_bwd = bench_backward(attn_pytorch_forward, N, D, dtype, is_causal=True)
+            pt_end = bench_end2end(attn_pytorch_forward, N, D, dtype, is_causal=True)
             # Triton FA-2
-            fa_fwd = bench_forward(fa_triton_forward, N, D, dtype, causal=True)
-            fa_bwd = bench_backward(fa_triton_forward, N, D, dtype, causal=True)
-            fa_end = bench_end2end(fa_triton_forward, N, D, dtype, causal=True)
+            fa_fwd = bench_forward(fa_triton_forward, N, D, dtype, is_causal=True)
+            fa_bwd = bench_backward(fa_triton_forward, N, D, dtype, is_causal=True)
+            fa_end = bench_end2end(fa_triton_forward, N, D, dtype, is_causal=True)
 
             rows.append(dict(
                 N=N, D=D, dtype=str(dtype).split(".")[-1],
