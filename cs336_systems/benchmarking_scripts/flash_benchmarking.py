@@ -76,9 +76,13 @@ for fwd in (attn_pytorch_forward, fa_triton_forward):
     Q, K, V = make_inputs(128, 64, torch.float32)
     _ = fwd(Q, K, V, is_causal=True); _.sum().backward()
 
+count = 0
 for dtype in dtypes:
     for D in Ds:
         for N in Ns:
+            count+=1
+            print("N, D, dtype", N, D, dtype)
+            print(f"Setting {count} of {len(Ns)*len(Ds)*len(dtypes)}")
             if would_oom(N, dtype):
                 continue
             # PyTorch baseline
