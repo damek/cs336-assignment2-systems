@@ -97,6 +97,7 @@ class FlashAttention(torch.autograd.Function):
     def forward(ctx, Q : torch.Tensor ,K : torch.Tensor,V : torch.Tensor, is_causal=False):
         B_q = B_k = 16
         # B_k = 1
+        T_q = math.ceil(Q.shape[-2] // B_q)
         d = Q.shape[-1]
         device = "cuda"
         # O_i = torch.empty(*Q.shape[:-2],B_q, d, device= device)
@@ -123,7 +124,7 @@ class FlashAttention(torch.autograd.Function):
         Q_TILE_SIZE = B_q
         K_TILE_SIZE = B_k
         D = d
-        flash_fwd_kernel[(batch_size, torch.cdiv(N_QUERIES, B_q))](
+        flash_fwd_kernel[(batch_size, T_q)](
             Q, K, V,
             O, L,
             stride_qb, stride_qq, stride_qd,
