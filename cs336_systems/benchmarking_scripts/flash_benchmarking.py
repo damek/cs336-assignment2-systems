@@ -41,9 +41,11 @@ def make_inputs(N, D, dtype):
     return Q, K, V
 
 def bench_forward(forward_impl, N, D, dtype, is_causal=True):
-    Q, K, V = make_inputs(N, D, dtype)
-    fn = lambda: torch.no_grad().__enter__() or forward_impl(Q, K, V, is_causal=is_causal)
-    return tt.do_bench(fn)
+    def run():
+        with torch.no_grad():
+            Q, K, V = make_inputs(N, D, dtype)
+            forward_impl(Q, K, V, is_causal=is_causal)
+    return tt.do_bench(run)
 
 def bench_backward(forward_impl, N, D, dtype, is_causal=True):
     def run():
@@ -72,7 +74,7 @@ def would_oom(N, dtype):
 
 for fwd in (attn_pytorch_forward, fa_triton_forward):
     Q, K, V = make_inputs(128, 64, torch.float32)
-    _ = fwd(Q, K, V, is_causal=True); _.backward(torch.ones_like(_))
+    _ = fwd(Q, K, V, is_causal=True); _.sum().backward()
 
 for dtype in dtypes:
     for D in Ds:
