@@ -156,7 +156,7 @@ print(f"\nMean Backward Speedup: {numeric_df['bwd_speedup'].mean():.2f}x")
 print(f"\nMean End-to-End Speedup: {numeric_df['e2e_speedup'].mean():.2f}x")
 
 # Save full results
-df.to_csv('flash_benchmark_results.csv', index=False)
+df.to_csv('../outputs/csv/flash_benchmark_results.csv', index=False)
 
 # Show pivot tables (handling OOM cases)
 for dtype in ['bf16', 'fp32']:
