@@ -1,16 +1,21 @@
-import torch
+import torch,os
 import triton
 import triton.testing
 import math
 import pandas as pd
 from typing import List, Tuple
 import itertools
+import gc
 
-# Import your FlashAttention implementation
 from cs336_systems.flashattention import FlashAttention
+uid = getattr(os, "getuid", lambda: os.getpid())()
+cache_dir = os.environ.get("TORCHINDUCTOR_CACHE_DIR", f"/tmp/torchinductor_{uid}")
+os.environ["TORCHINDUCTOR_CACHE_DIR"] = cache_dir
+os.environ.setdefault("USER", f"user{uid}")   # sidestep getpass.getuser()
+os.environ.setdefault("HOME", "/tmp")
+os.makedirs(cache_dir, exist_ok=True)
 
-
-
+@torch.compile
 def pytorch_attention_forward(Q, K, V, is_causal=True):
     """Standard PyTorch attention implementation with proper gradient tracking"""
     d = Q.shape[-1]
@@ -24,6 +29,11 @@ def pytorch_attention_forward(Q, K, V, is_causal=True):
     attn = torch.softmax(scores, dim=-1)
     out = torch.matmul(attn, V)
     return out
+
+def clear_gpu_memory():
+    """Clear GPU memory between benchmarks"""
+    gc.collect()
+    torch.cuda.empty_cache()
 
 def benchmark_attention(batch_size: int, seq_len: int, dim: int, dtype: torch.dtype, 
                        warmup: int = 25, rep: int = 100) -> dict:
