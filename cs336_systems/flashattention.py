@@ -97,7 +97,7 @@ def flash_fwd_kernel(
 
 class FlashAttention(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, Q : torch.Tensor ,K : torch.Tensor,V : torch.Tensor, is_causal=False):
+    def forward(ctx, Q : torch.Tensor ,K : torch.Tensor,V : torch.Tensor):
         B_q = B_k = 16
         # B_k = 1
         T_q = triton.cdiv(Q.shape[-2], B_q)
