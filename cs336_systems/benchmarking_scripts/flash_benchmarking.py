@@ -1,5 +1,5 @@
 # Cowritten with gpt5.
-import math, itertools, torch, triton
+import math, itertools, torch, triton, os
 import triton.testing as tt
 import cs336_basics.model as models
 import pandas as pd
@@ -9,6 +9,13 @@ torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 torch.set_float32_matmul_precision("high")
 device = "cuda"
+
+uid = getattr(os, "getuid", lambda: os.getpid())()
+cache_dir = os.environ.get("TORCHINDUCTOR_CACHE_DIR", f"/tmp/torchinductor_{uid}")
+os.environ["TORCHINDUCTOR_CACHE_DIR"] = cache_dir
+os.environ.setdefault("USER", f"user{uid}")   # sidestep getpass.getuser()
+os.environ.setdefault("HOME", "/tmp")
+os.makedirs(cache_dir, exist_ok=True)
 
 # --- Baseline PyTorch attention (forward) ---
 def attn_pytorch_forward(Q, K, V, *, causal=True):

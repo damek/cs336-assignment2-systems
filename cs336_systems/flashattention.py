@@ -3,7 +3,6 @@ import triton.language as tl
 import math
 from einops import rearrange, einsum
 
-
 @triton.jit
 def flash_fwd_kernel(
     Q_ptr, K_ptr, V_ptr,
