@@ -112,19 +112,19 @@ def flash_fwd_kernel(
 @torch.compile
 def flash_attention_backward(Q, K, V, L, O, dO,sqrt_d,is_causal):
     dO = dO.to(Q.dtype); O = O.to(Q.dtype); L = L.to(Q.dtype)
-    sqrt_d = sqrt_d.to(Q.dtype)
+    inv_sqrt_d = Q.new_tensor(1.0 / sqrt_d)
     D = (O * dO).sum(dim=-1, keepdim=True)
     S = einsum(Q, K, "... i d, ... j d -> ... i j")/sqrt_d
     if is_causal: 
         i = torch.arange(S.shape[-2], device=S.device)
         mask = i[None, :] > i[:, None]
-        S = S.masked_fill(mask, float("-inf"))
+        S = S.masked_fill(mask, float("-inf"), dtype=Q.dtype, device=Q.device)
     P = torch.exp(S - L.unsqueeze(-1))
     dV = einsum(P, dO, "... i j, ... i d -> ... j d")
     dP = einsum(dO, V, "... i d, ... j d -> ... i j")
     dS = P * (dP - D)
-    dQ = einsum(dS, K, "... a b, ... b c-> ... a c")/sqrt_d
-    dK = einsum(dS, Q, "... a b, ... a d -> ... b d")/sqrt_d
+    dQ = einsum(dS, K, "... a b, ... b c-> ... a c")*inv_sqrt_d
+    dK = einsum(dS, Q, "... a b, ... a d -> ... b d")*inv_sqrt_d
 
     return dQ, dK, dV, None
 
