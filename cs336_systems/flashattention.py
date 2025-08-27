@@ -128,7 +128,7 @@ def flash_fwd_kernel(
 
 @torch.compile
 def flash_attention_backward(Q, K, V, L, O, dO, sqrt_d, is_causal):
-    B_k = 128
+    B_k = 2048
     N = K.shape[-2]
 
     # keep grads in the same dtype as inputs
