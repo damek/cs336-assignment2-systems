@@ -101,7 +101,7 @@ class FlashAttention(torch.autograd.Function):
     def forward(ctx, Q : torch.Tensor ,K : torch.Tensor,V : torch.Tensor, is_causal=False):
         B_q = B_k = 16
         # B_k = 1
-        T_q = math.ceil(Q.shape[-2] // B_q)
+        T_q = triton.cdiv(Q.shape[-2], B_q)
         d = Q.shape[-1]
         device = "cuda"
         # O_i = torch.empty(*Q.shape[:-2],B_q, d, device= device)
