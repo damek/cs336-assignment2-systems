@@ -119,10 +119,10 @@ def flash_attention_backward(Q, K, V, L, O, dO,sqrt_d,is_causal):
         S = S.masked_fill(mask, float("-inf"))
     P = torch.exp(S - L.unsqueeze(-1))
     dV = einsum(P, dO, "... i j, ... i d -> ... j d")
-    dP = einsum(dO.to(V.dtype), V, "... i d, ... j d -> ... i j")
+    dP = einsum(dO, V, "... i d, ... j d -> ... i j")
     dS = P * (dP - D)
-    dQ = einsum(dS.to(K.dtype), K, "... a b, ... b c-> ... a c")/sqrt_d
-    dK = einsum(dS.to(Q.dtype), Q, "... a b, ... a d -> ... b d")/sqrt_d
+    dQ = einsum(dS, K, "... a b, ... b c-> ... a c")/sqrt_d
+    dK = einsum(dS, Q, "... a b, ... a d -> ... b d")/sqrt_d
 
     return dQ, dK, dV, None
 
