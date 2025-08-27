@@ -93,7 +93,7 @@ def flash_fwd_kernel(
     O_i = O_i / l_i[:, None]
     l_i = m_i + tl.log(l_i)
     tl.store(O_block_ptr, O_i, boundary_check=(0,1))
-    tl.store(L_block_ptr, l_i, boundary_check=(0,1))
+    tl.store(L_block_ptr, l_i, boundary_check=(0,))
 
 
 class FlashAttention(torch.autograd.Function):
