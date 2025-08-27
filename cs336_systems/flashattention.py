@@ -107,6 +107,11 @@ class FlashAttention(torch.autograd.Function):
         L = torch.empty(Q.shape[:-1], device=Q.device)
         batch_size = Q.shape[0]
         N_QUERIES = Q.shape[-2]
+        N_KEYS = K.shape[-2]
+        scale = 1/math.sqrt(d)
+        Q_TILE_SIZE = B_q
+        K_TILE_SIZE = B_k
+        D = d
         stride_qb = Q.stride(0)
         stride_qq = Q.stride(1)
         stride_qd = Q.stride(2)
@@ -121,11 +126,7 @@ class FlashAttention(torch.autograd.Function):
         stride_od = O.stride(2)
         stride_lb = L.stride(0)
         stride_lq = L.stride(1)
-        N_KEYS = K.shape[-2]
-        scale = 1/math.sqrt(d)
-        Q_TILE_SIZE = B_q
-        K_TILE_SIZE = B_k
-        D = d
+
         flash_fwd_kernel[(batch_size, T_q)](
             Q, K, V,
             O, L,
