@@ -30,7 +30,7 @@ def attn_pytorch_forward(Q, K, V, *, causal=True):
     else:
         return attention(Q, K, V, mask=None)
 
-FA_Triton = FlashAttention()
+FA_Triton = FlashAttention
 def fa_triton_forward(Q, K, V, *, causal=True):
     return FA_Triton.apply(Q, K, V, is_causal=causal)
 
