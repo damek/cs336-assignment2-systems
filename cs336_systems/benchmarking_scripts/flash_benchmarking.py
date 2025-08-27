@@ -43,7 +43,7 @@ def benchmark_config(batch_size, seq_len, dim, dtype):
         Q = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda')
         K = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda')
         V = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda')
-        dO = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda')
+        # dO = torch.randn(batch_size, seq_len, dim, dtype=dtype, device='cuda')
     except torch.cuda.OutOfMemoryError:
         print(f"    OOM during input creation")
         torch.cuda.empty_cache()
@@ -72,7 +72,7 @@ def benchmark_config(batch_size, seq_len, dim, dtype):
             Ke.grad = None
             Ve.grad = None
             O = FlashAttention.apply(Qe, Ke, Ve, True)
-            O.sum().backward(dO)
+            O.sum().backward()
         result['flash_e2e'] = triton.testing.do_bench(flash_e2e, warmup=warmup,rep=rep)
     except torch.cuda.OutOfMemoryError:
         print(f"    FlashAttention e2e OOM")
@@ -87,7 +87,7 @@ def benchmark_config(batch_size, seq_len, dim, dtype):
             Ke.grad = None
             Ve.grad = None
             O = pytorch_attention(Qe, Ke, Ve, True)
-            O.sum().backward(dO)
+            O.sum().backward()
         result['torch_e2e'] = triton.testing.do_bench(torch_e2e, warmup=warmup,rep=rep)
     except torch.cuda.OutOfMemoryError:
         print(f"    PyTorch e2e OOM")
