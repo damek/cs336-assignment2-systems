@@ -45,7 +45,7 @@ def flash_fwd_kernel(
 
     L_block_ptr = tl.make_block_ptr(
     L_ptr + batch_index * stride_lb,
-    shape=(N_QUERIES, D),
+    shape=(N_QUERIES,),
     strides=(stride_lq,),
     offsets=(query_tile_index * Q_TILE_SIZE,),
     block_shape=(Q_TILE_SIZE,),
@@ -85,6 +85,8 @@ def flash_fwd_kernel(
         O_i = O_i*exp_scale[:, None]
         O_i += tl.dot(tildeP.to(tl.float32), tl.trans(V_j))
         m_i = m_i_new
+        K_j = K_j.advance((K_TILE_SIZE, D))
+        V_j = V_j.advance((K_TILE_SIZE, D))
 
     O_i = tl.div_rn(O_i,l_i[:, None])
     l_i = m_i + tl.log(l_i)
