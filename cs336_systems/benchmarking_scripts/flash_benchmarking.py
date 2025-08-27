@@ -4,6 +4,8 @@ import triton.testing as tt
 import cs336_basics.model as models
 import pandas as pd
 from cs336_systems.flashattention import FlashAttention
+import gc
+
 
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
@@ -34,6 +36,7 @@ def _run_and_bench(fn):
         # older PyTorch sometimes throws plain RuntimeError with this text
         if "out of memory" in str(e).lower():
             _cleanup_cuda()
+            print("Out of memory")
             return None
         raise
 
@@ -67,11 +70,15 @@ def bench_forward(forward_impl, N, D, dtype, is_causal=True):
     return _run_and_bench(run)
 
 def bench_backward(forward_impl, N, D, dtype, is_causal=True):
+    # Build the graph once, OUTSIDE timing
+    Q, K, V = make_inputs(N, D, dtype)
+    O = forward_impl(Q, K, V, is_causal=is_causal)
+    dO = torch.randn_like(O)
+
+    # Time ONLY the backward on the same graph
     def run():
-        Q, K, V = make_inputs(N, D, dtype)
-        O = forward_impl(Q, K, V, is_causal=is_causal)
-        dO = torch.randn_like(O)
-        O.backward(dO, retain_graph=False)
+        # autograd.grad returns grads and does NOT accumulate into .grad
+        torch.autograd.grad((O,), (Q, K, V), (dO,), retain_graph=True)
     return _run_and_bench(run)
 
 def bench_end2end(forward_impl, N, D, dtype, is_causal=True):
