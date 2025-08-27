@@ -1,4 +1,4 @@
-import torch, os
+import torch
 import triton
 import triton.testing
 import math
@@ -9,12 +9,7 @@ import itertools
 # Import your FlashAttention implementation
 from cs336_systems.flashattention import FlashAttention
 
-uid = getattr(os, "getuid", lambda: os.getpid())()
-cache_dir = os.environ.get("TORCHINDUCTOR_CACHE_DIR", f"/tmp/torchinductor_{uid}")
-os.environ["TORCHINDUCTOR_CACHE_DIR"] = cache_dir
-os.environ.setdefault("USER", f"user{uid}")   # sidestep getpass.getuser()
-os.environ.setdefault("HOME", "/tmp")
-os.makedirs(cache_dir, exist_ok=True)
+
 
 def pytorch_attention_forward(Q, K, V, is_causal=True):
     """Standard PyTorch attention implementation with proper gradient tracking"""

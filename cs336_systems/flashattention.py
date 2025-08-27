@@ -1,8 +1,14 @@
-import torch, triton
+import torch, triton, os
 import triton.language as tl
 import math
 from einops import rearrange, einsum
 
+uid = getattr(os, "getuid", lambda: os.getpid())()
+cache_dir = os.environ.get("TORCHINDUCTOR_CACHE_DIR", f"/tmp/torchinductor_{uid}")
+os.environ["TORCHINDUCTOR_CACHE_DIR"] = cache_dir
+os.environ.setdefault("USER", f"user{uid}")   # sidestep getpass.getuser()
+os.environ.setdefault("HOME", "/tmp")
+os.makedirs(cache_dir, exist_ok=True)
 @triton.jit
 def flash_fwd_kernel(
     Q_ptr, K_ptr, V_ptr,
