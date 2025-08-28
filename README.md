@@ -49,7 +49,7 @@ https://x.com/damekdavis/status/1949507725626347825
 ## Running the standalone benchmarking script: 
 
 ```bash
-uv run benchmarking_script.py --num_layers 12 --num_heads 12 --d_ff 3072 --d_model 76008 --context_length 1024 --rope_theta 10000 --vocab_size 10000 --output_csv "times.csv" --num_warmup 1 --num_benchmark 2
+uv run benchmarking_script.py --num_layers 12 --num_heads 12 --d_ff 3072 --d_model 768 --context_length 1024 --rope_theta 10000 --vocab_size 10000 --output_csv "times.csv" --num_warmup 1 --num_benchmark 2
 ```
 
 ## Runai 
