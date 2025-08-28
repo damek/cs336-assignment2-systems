@@ -15,12 +15,12 @@ def distributed_demo(rank, world_size, tensor_size_mb, num_iterations):
     try: 
         # float32 tensor of size tensor_size_mb
         convert_tensor_size = int(tensor_size_mb * 1024 * 1024 / 4)
-        data = torch.randn(convert_tensor_size, device=f"cuda:{rank}", dtype=torch.float32)
         # print the size of the tensor
         print(f"rank {rank} tensor size: {data.size()}")
         total_time = 0
         # print(f"rank {rank} data (before all-reduce): {data}")
-        for i in range(num_iterations):
+        for _ in range(num_iterations):
+            data = torch.randn(convert_tensor_size, device=f"cuda:{rank}", dtype=torch.float32)
             start_time = time.perf_counter()
             dist.all_reduce(data, async_op=False)
             # synchronize all processes
