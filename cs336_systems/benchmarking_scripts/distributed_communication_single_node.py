@@ -35,5 +35,5 @@ def distributed_demo(rank, world_size, tensor_size_mb):
 
 if __name__ == "__main__":
     world_size = 4
-    tensor_size_mb = 1024
-    mp.spawn(fn=distributed_demo, args=(world_size, tensor_size_mb, ), nprocs=world_size, join=True)
+    tensor_size_mb = 1
+    mp.spawn(fn=distributed_demo, args=(world_size, tensor_size_mb), nprocs=world_size, join=True)
