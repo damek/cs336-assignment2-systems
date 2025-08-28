@@ -2,6 +2,7 @@ import os
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
+import time
 
 def setup(rank, world_size):
     os.environ["MASTER_ADDR"] = "localhost"
@@ -13,8 +14,13 @@ def distributed_demo(rank, world_size):
     try: 
         data = torch.randint(0, 10, (3,), device=f"cuda:{rank}")
         print(f"rank {rank} data (before all-reduce): {data}")
+        start_time = time.perf_counter()
         dist.all_reduce(data, async_op=False)
+        end_time = time.perf_counter()
+        # synchronize all processes
+        torch.cuda.synchronize()
         print(f"rank {rank} data (after all-reduce): {data}")
+        print(f"rank {rank} time taken: {end_time - start_time} seconds")
     finally:
         dist.destroy_process_group()
 
