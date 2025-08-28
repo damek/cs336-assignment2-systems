@@ -10,7 +10,7 @@ import numpy as np
 
 def setup(rank, world_size):
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "29500"
+    os.environ["MASTER_PORT"] = "29501"
     torch.cuda.set_device(rank)
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
@@ -78,9 +78,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs):
             dist.scatter(x_local, scatter_list=x_list, src=0)
             dist.scatter(y_local, scatter_list=y_list, src=0)
 
-            for p in model.parameters():
-                if p.grad is not None:
-                    p.grad = None
+            optimizer.zero_grad()
 
             logits = model(x_local)
             loss = nn_utils.cross_entropy(logits, y_local)
@@ -92,8 +90,9 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs):
             optimizer.step()
 
             if rank == 0 and iter % 10 == 0:
-                dist.all_reduce(loss, op=dist.ReduceOp.AVG)
-                print(f"Iteration {iter} loss: {loss.item()}")
+                loss_avg = loss.detach()
+                dist.all_reduce(loss_avg, op=dist.ReduceOp.AVG)
+                print(f"Iteration {iter} loss: {loss_avg.item()}")
 
     finally: 
         if dist.is_initialized():
@@ -104,7 +103,7 @@ if __name__ == "__main__":
     nb_iters = 1000
     local_bs = 2
     model_dict = {
-        "vocab_size": 1000,
+        "vocab_size": 1024,
         "context_length": 128,
         "d_model": 128,
         "num_layers": 2,
