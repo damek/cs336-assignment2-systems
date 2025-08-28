@@ -37,8 +37,9 @@ def distributed_demo(rank, world_size, tensor_size_mb, num_iterations, num_warmu
         dist.destroy_process_group()
 
 if __name__ == "__main__":
-    world_size = 4
-    tensor_size_mb = 10000
-    num_iterations = 10
-    num_warmup_iterations = 5
-    mp.spawn(fn=distributed_demo, args=(world_size, tensor_size_mb, num_iterations, num_warmup_iterations), nprocs=world_size, join=True)
+    for world_size in [2, 4]:
+        for MB in [1, 10, 100, 1000]:
+            tensor_size_mb = MB
+            num_warmup_iterations = 5
+            num_iterations = 10
+            mp.spawn(fn=distributed_demo, args=(world_size, tensor_size_mb, num_iterations, num_warmup_iterations), nprocs=world_size, join=True)
