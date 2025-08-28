@@ -16,7 +16,7 @@ def distributed_demo(rank, world_size, tensor_size_mb, num_iterations):
         # float32 tensor of size tensor_size_mb
         convert_tensor_size = int(tensor_size_mb * 1024 * 1024 / 4)
         # print the size of the tensor
-        print(f"rank {rank} tensor size: {data.size()}")
+        # print(f"rank {rank} tensor size: {data.size()}")
         total_time = 0
         # print(f"rank {rank} data (before all-reduce): {data}")
         for _ in range(num_iterations):
