@@ -135,9 +135,16 @@ if __name__ == "__main__":
         same = all(torch.equal(s1[k], s2[k]) for k in s1)
 
         total_error = 0
+        norm_of_s1 = 0
+        norm_of_s2 = 0
+        
         for k in s1:
             total_error += torch.sum(torch.square(s1[k] - s2[k]))
+            norm_of_s1 += torch.sum(torch.square(s1[k]))
+            norm_of_s2 += torch.sum(torch.square(s2[k]))
         total_error = torch.sqrt(total_error)
+        norm_of_s1 = torch.sqrt(norm_of_s1)
+        norm_of_s2 = torch.sqrt(norm_of_s2)
         print("same", same)
         print("total_error", total_error)
-        print("total_error_ratio", total_error/len(s1))
+        print("relative_error", total_error/(torch.max(norm_of_s1, norm_of_s2)))
