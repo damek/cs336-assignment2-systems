@@ -123,9 +123,11 @@ if __name__ == "__main__":
         single_path = os.path.join(outdir, "single.pt")
         ddp_path    = os.path.join(outdir, "ddp.pt")
 
+        print("Training single GPU model")
         mp.spawn(train, args=(1, nb_iters, model_dict, optimizer_dict, global_bs, single_path),
                  nprocs=1, join=True)
 
+        print("Training DDP model")
         mp.spawn(fn=train, args=(world_size, nb_iters, model_dict, optimizer_dict, local_bs, ddp_path), nprocs=world_size, join=True)
 
         s1 = torch.load(single_path, map_location="cpu")
