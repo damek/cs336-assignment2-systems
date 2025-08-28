@@ -9,11 +9,11 @@ def setup(rank, world_size):
     os.environ["MASTER_PORT"] = "29501"
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
-def distributed_demo(rank, world_size, tensor_size_mb, num_iterations, num_warmup_iterations=5):
+def distributed_demo(rank, world_size, MB, num_iterations, num_warmup_iterations=5):
     setup(rank, world_size)
     # timing = [None] * world_size
     try: 
-        convert_tensor_size = int(tensor_size_mb * 1024 * 1024 / 4)
+        convert_tensor_size = int(MB * 1024 * 1024 / 4)
         data = torch.randn(convert_tensor_size, device=f"cuda:{rank}", dtype=torch.float32)
         print(f"rank {rank} tensor size: {data.size()}")
         total_time = 0
@@ -39,7 +39,6 @@ def distributed_demo(rank, world_size, tensor_size_mb, num_iterations, num_warmu
 if __name__ == "__main__":
     for world_size in [2, 4]:
         for MB in [1, 10, 100, 1000]:
-            tensor_size_mb = MB
             num_warmup_iterations = 5
             num_iterations = 10
-            mp.spawn(fn=distributed_demo, args=(world_size, tensor_size_mb, num_iterations, num_warmup_iterations), nprocs=world_size, join=True)
+            mp.spawn(fn=distributed_demo, args=(world_size, MB, num_iterations, num_warmup_iterations), nprocs=world_size, join=True)
