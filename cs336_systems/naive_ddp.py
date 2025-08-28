@@ -14,7 +14,7 @@ def setup(rank, world_size):
     torch.cuda.set_device(rank)
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
-def create_model_and_optimizer(model_dict, optimizer_dict):
+def create_model_and_optimizer(model_dict, optimizer_dict, device):
     vocab_size = model_dict["vocab_size"]
     context_length = model_dict["context_length"]
     d_model = model_dict["d_model"]
@@ -31,10 +31,12 @@ def create_model_and_optimizer(model_dict, optimizer_dict):
         d_ff=d_ff,
         rope_theta=rope_theta,
     )
+    model.to(device)
     # Create optimizer
     lr = optimizer_dict.get("lr", 1e-3)
     weight_decay = optimizer_dict.get("weight_decay", 0.01)
     optimizer = optimizer_class.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+    optimizer.to(device)
     return model, optimizer
 
 def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs):
@@ -44,8 +46,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs):
         torch.manual_seed(0)
         torch.cuda.manual_seed_all(0)
         np.random.seed(0)
-        model, optimizer = create_model_and_optimizer(model_dict, optimizer_dict)
-        model.to(f"cuda:{rank}")
+        model, optimizer = create_model_and_optimizer(model_dict, optimizer_dict, device)
 
         dicts = [None, None]
         if rank == 0: 
