@@ -36,9 +36,9 @@ def distributed_demo(rank, world_size, MB, num_iterations, num_warmup_iterations
         dist.destroy_process_group()
 
 if __name__ == "__main__":
-    for world_size in [2, 4, 8, 16]:
+    for world_size in [2, 4]:
         for MB in [1, 10, 100, 1000]:
-            print(f"world_size: {world_size} MB: {MB}")
+            print(f"world_size: {world_size}, MB: {MB}")
             num_warmup_iterations = 5
             num_iterations = 10
             mp.spawn(fn=distributed_demo, args=(world_size, MB, num_iterations, num_warmup_iterations), nprocs=world_size, join=True)
