@@ -5,7 +5,7 @@ import cs336_basics.optimizer as optimizer_class
 import cs336_basics.nn_utils as nn_utils
 import torch.distributed as dist
 import torch.multiprocessing as mp
-import os
+import os, tempfile
 import numpy as np
 
 def setup(rank, world_size):
@@ -38,7 +38,7 @@ def create_model_and_optimizer(model_dict, optimizer_dict, device):
     optimizer = optimizer_class.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     return model, optimizer
 
-def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs):
+def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, path):
     setup(rank, world_size)
     device=f"cuda:{rank}"
     try: 
@@ -95,6 +95,8 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs):
                 if rank == 0:
                     print(f"Iteration {iter} loss: {loss_avg.item()}")
 
+        if rank == 0:
+            torch.save(model.state_dict(), path)
     finally: 
         if dist.is_initialized():
             dist.destroy_process_group()
@@ -103,6 +105,7 @@ if __name__ == "__main__":
     world_size = 4
     nb_iters = 1000
     local_bs = 2
+    global_bs = local_bs*world_size
     model_dict = {
         "vocab_size": 1024,
         "context_length": 128,
@@ -116,4 +119,23 @@ if __name__ == "__main__":
         "lr": 1e-3,
         "weight_decay": 0.01,
     }
-    mp.spawn(fn=train, args=(world_size, nb_iters, model_dict, optimizer_dict, local_bs), nprocs=world_size, join=True)
+    with tempfile.TemporaryDirectory(prefix="ddp_compare_") as outdir:
+        single_path = os.path.join(outdir, "single.pt")
+        ddp_path    = os.path.join(outdir, "ddp.pt")
+
+        mp.spawn(train, args=(1, nb_iters, model_dict, optimizer_dict, global_bs, single_path),
+                 nprocs=1, join=True)
+
+        mp.spawn(fn=train, args=(world_size, nb_iters, model_dict, optimizer_dict, local_bs, ddp_path), nprocs=world_size, join=True)
+
+        s1 = torch.load(single_path, map_location="cpu")
+        s2 = torch.load(ddp_path, map_location="cpu")
+        same = all(torch.equal(s1[k], s2[k]) for k in s1)
+
+        total_error = 0
+        for k in s1:
+            total_error += torch.sum(torch.square(s1[k] - s2[k]))
+        total_error = torch.sqrt(total_error)
+        print("same", same)
+        print("total_error", total_error)
+        print("total_error_ratio", total_error/len(s1))
