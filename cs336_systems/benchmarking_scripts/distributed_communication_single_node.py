@@ -11,7 +11,7 @@ def setup(rank, world_size):
 
 def distributed_demo(rank, world_size, tensor_size_mb):
     setup(rank, world_size)
-    timing = [None] * world_size
+    # timing = [None] * world_size
     try: 
         # float32 tensor of size tensor_size_mb
         convert_tensor_size = int(tensor_size_mb * 1024 * 1024 / 4)
@@ -24,12 +24,11 @@ def distributed_demo(rank, world_size, tensor_size_mb):
         # synchronize all processes
         torch.cuda.synchronize()
         end_time = time.perf_counter()
-        timing[rank] = end_time - start_time
+        # timing[rank] = end_time - start_time
         # dist.all_gather(data, data)
-        print(f"rank {rank} data (after all-reduce): {data}")
         print(f"rank {rank} time taken: {end_time - start_time} seconds")
         # print the minimum time taken
-        print(f"rank {rank} minimum time taken: {min(timing)} seconds")
+        # print(f"rank {rank} minimum time taken: {min(timing)} seconds")
     finally:
         dist.destroy_process_group()
 
