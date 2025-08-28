@@ -38,7 +38,7 @@ def distributed_demo(rank, world_size, MB, num_iterations, num_warmup_iterations
         # print the minimum time taken
         # print(f"rank {rank} minimum time taken: {min(timing)} seconds")
         if rank == 0:
-            print(f"world_size: {world_size} MB: {MB} max time taken: {max_time.item()} seconds")
+            print(f"world_size: {world_size} MB: {MB} max time taken: {max_time[0]} seconds")
     finally:
         dist.destroy_process_group()
 
