@@ -69,7 +69,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs):
         x_local = torch.empty((local_bs, context_length), dtype=torch.long, device=device)
         y_local = torch.empty((local_bs, context_length), dtype=torch.long, device=device)
 
-        for i in range(nb_iters):
+        for iter in range(nb_iters):
             if rank == 0:
                 inputs, targets = data.get_batch(dataset, global_bs, context_length, device=device)
                 x_list = [t.contiguous() for t in inputs.chunk(world_size, dim=0)]
@@ -92,13 +92,17 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs):
 
             optimizer.step()
 
+            if rank == 0 and iter % 100 == 0:
+                dist.all_reduce(loss, op=dist.ReduceOp.AVG)
+                print(f"Iteration {iter} loss: {loss.item()}")
+
     finally: 
         if dist.is_initialized():
             dist.destroy_process_group()
 
 if __name__ == "__main__":
     world_size = 4
-    num_iterations = 10
+    nb_iters = 1000
     local_bs = 2
     model_dict = {
         "vocab_size": 1000,
@@ -112,4 +116,4 @@ if __name__ == "__main__":
         "lr": 1e-3,
         "weight_decay": 0.01,
     }
-    mp.spawn(fn=train, args=(world_size, num_iterations, model_dict, optimizer_dict, local_bs), nprocs=world_size, join=True)
+    mp.spawn(fn=train, args=(world_size, nb_iters, model_dict, optimizer_dict, local_bs), nprocs=world_size, join=True)
