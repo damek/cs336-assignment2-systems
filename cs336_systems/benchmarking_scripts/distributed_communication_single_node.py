@@ -40,5 +40,4 @@ if __name__ == "__main__":
         for MB in [1, 10, 100, 1000]:
             num_warmup_iterations = 5
             num_iterations = 10
-            # print(f"world_size: {world_size}, MB: {MB}, num_iterations: {num_iterations}, num_warmup_iterations: {num_warmup_iterations}")
             mp.spawn(fn=distributed_demo, args=(world_size, MB, num_iterations, num_warmup_iterations), nprocs=world_size, join=True)
