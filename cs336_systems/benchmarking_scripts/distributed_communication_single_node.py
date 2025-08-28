@@ -7,6 +7,7 @@ import time
 def setup(rank, world_size):
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = "29501"
+    torch.cuda.set_device(rank)
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
 def distributed_demo(rank, world_size, MB, num_iterations, num_warmup_iterations=5):
