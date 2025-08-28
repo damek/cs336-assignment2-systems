@@ -145,6 +145,5 @@ if __name__ == "__main__":
         total_error = torch.sqrt(total_error)
         norm_of_s1 = torch.sqrt(norm_of_s1)
         norm_of_s2 = torch.sqrt(norm_of_s2)
-        print("same", same)
-        print("total_error", total_error)
-        print("relative_error", total_error/(torch.max(norm_of_s1, norm_of_s2)))
+        print("total L2 error between single and ddp", total_error)
+        print("relative L2 error between single and ddp", total_error/(torch.max(norm_of_s1, norm_of_s2)))
