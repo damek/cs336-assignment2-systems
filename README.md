@@ -41,6 +41,8 @@ https://x.com/damekdavis/status/1949507725626347825
   - Benchmarking single node all-reduce on 2-4 GPUs.
     - Run code [distributed_communication_single_node.py](cs336_systems/benchmarking_scripts/distributed_communication_single_node.py)
     - Results: [distributed_communication_single_node.md](cs336_systems/outputs/distributed_communication_single_node.md)
+  - Naive DDP (comparing Single GPU to DDP)
+    - Run code [naive_ddp.py](cs336_systems/naive_ddp.py)
 
 # Getting started with my code
 
