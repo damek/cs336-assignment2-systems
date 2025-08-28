@@ -110,6 +110,7 @@ if __name__ == "__main__":
         "num_layers": 2,
         "num_heads": 4,
         "d_ff": 4*128,
+        "rope_theta": 10000,    
     }
     optimizer_dict = {
         "lr": 1e-3,
