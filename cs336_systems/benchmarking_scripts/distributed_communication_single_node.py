@@ -21,6 +21,7 @@ def distributed_demo(rank, world_size, MB, num_iterations, num_warmup_iterations
         for _ in range(num_warmup_iterations):
             dist.all_reduce(data, async_op=False)
             torch.cuda.synchronize()
+        dist.barrier()
         for _ in range(num_iterations):
             start_time = time.perf_counter()
             dist.all_reduce(data, async_op=False)
