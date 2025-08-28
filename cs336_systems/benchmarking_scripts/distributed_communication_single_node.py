@@ -10,10 +10,13 @@ def setup(rank, world_size):
 
 def distributed_demo(rank, world_size):
     setup(rank, world_size)
-    data = torch.randint(0, 10, (3,), device=f"cuda:{rank}")
-    print(f"rank {rank} data (before all-reduce): {data}")
-    dist.all_reduce(data, async_op=False)
-    print(f"rank {rank} data (after all-reduce): {data}")
+    try: 
+        data = torch.randint(0, 10, (3,), device=f"cuda:{rank}")
+        print(f"rank {rank} data (before all-reduce): {data}")
+        dist.all_reduce(data, async_op=False)
+        print(f"rank {rank} data (after all-reduce): {data}")
+    finally:
+        dist.destroy_process_group()
 
 if __name__ == "__main__":
     world_size = 4
