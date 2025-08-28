@@ -13,8 +13,7 @@ uv run cs336_systems/benchmarking_scripts/distributed_communication_single_node.
 ```
 
 ## Deliverable
-> Deliverable: Plot(s) and/or table(s) comparing the various settings, with 2-3 sentences of com-
-> mentary about your results and thoughts about how the various factors interact.
+> Deliverable: Plot(s) and/or table(s) comparing the various settings, with 2-3 sentences of commentary about your results and thoughts about how the various factors interact.
 
 ```bash
 world_size: 2, MB: 1, max time taken: 0.00011833049211418256 seconds
