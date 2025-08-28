@@ -14,7 +14,7 @@ def distributed_demo(rank, world_size, tensor_size_mb):
     timing = [None] * world_size
     try: 
         # float32 tensor of size tensor_size_mb
-        convert_tensor_size = tensor_size_mb * 1024 * 1024 / 4
+        convert_tensor_size = int(tensor_size_mb * 1024 * 1024 / 4)
         data = torch.randn(convert_tensor_size, device=f"cuda:{rank}", dtype=torch.float32)
         # print the size of the tensor
         print(f"rank {rank} tensor size: {data.size()}")
