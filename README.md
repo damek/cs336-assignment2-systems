@@ -37,6 +37,10 @@ https://x.com/damekdavis/status/1949507725626347825
   - Implementation (Forward pass done; PyTorch backward pass done (assignment didn't ask for Triton on this part)): [cs336_systems/flashattention.py](cs336_systems/flashattention.py)
   - Benchmarking script: [cs336_systems/benchmarking_scripts/flash_benchmarking.py](cs336_systems/benchmarking_scripts/flash_benchmarking.py)
   - Results: [flash_benchmark_results.csv](cs336_systems/outputs/csv/flash_benchmark_results.csv)
+- Distributed Communication
+  - Benchmarking single node all-reduce on 2-4 GPUs.
+    - Run code [distributed_communication_single_node.py](cs336_systems/benchmarking_scripts/distributed_communication_single_node.py)
+    - Results: [distributed_communication_single_node.md](cs336_systems/outputs/distributed_communication_single_node.md)
 
 # Getting started with my code
 
@@ -50,7 +54,7 @@ uv run benchmarking_script.py --num_layers 12 --num_heads 12 --d_ff 3072 --d_mod
 ### Setting up the environment
 Setting up the environment
 ```bash
-runai submit cs336-dev \ -p <user> \  -i nvcr.io/nvidia/pytorch:25.06-py3 \  -g 1 --interactive --attach \  --command -- bash
+runai submit cs336-dev \ -p <user> \  -i nvcr.io/nvidia/pytorch:25.06-py3 \  -g 1 --interactive --attach \  --command -- bash # replace -g 1 with -g 4 for 4 GPUs.
 git clone https://github.com/damek/cs336-assignment2-systems.git
 pip install uv
 cd cs336-assignment2-systems
