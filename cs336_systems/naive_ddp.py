@@ -78,7 +78,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs):
             dist.scatter(x_local, scatter_list=x_list, src=0)
             dist.scatter(y_local, scatter_list=y_list, src=0)
 
-            optimizer.zero_grad()
+            optimizer.zero_grad(set_to_none=True)
 
             logits = model(x_local)
             loss = nn_utils.cross_entropy(logits, y_local)
@@ -89,10 +89,11 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs):
 
             optimizer.step()
 
-            if rank == 0 and iter % 10 == 0:
+            if iter % 10 == 0:
                 loss_avg = loss.detach()
                 dist.all_reduce(loss_avg, op=dist.ReduceOp.AVG)
-                print(f"Iteration {iter} loss: {loss_avg.item()}")
+                if rank == 0:
+                    print(f"Iteration {iter} loss: {loss_avg.item()}")
 
     finally: 
         if dist.is_initialized():
