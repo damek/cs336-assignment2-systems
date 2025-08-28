@@ -29,12 +29,15 @@ def distributed_demo(rank, world_size, MB, num_iterations, num_warmup_iterations
             end_time = time.perf_counter()
             total_time += end_time - start_time
         total_time /= num_iterations
-
+        t = torch.tensor([total_time], device="cuda")
+        max_time = torch.all_reduce(t, op=dist.ReduceOp.MAX)
         # timing[rank] = end_time - start_time
         # dist.all_gather(data, data)
         print(f"rank {rank} time taken: {total_time} seconds")
         # print the minimum time taken
         # print(f"rank {rank} minimum time taken: {min(timing)} seconds")
+        if rank == 0:
+            print(f"world_size: {world_size} MB: {MB} max time taken: {max_time.item()} seconds")
     finally:
         dist.destroy_process_group()
 
