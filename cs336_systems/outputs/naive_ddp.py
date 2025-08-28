@@ -92,7 +92,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs):
 
             optimizer.step()
 
-            if rank == 0 and iter % 100 == 0:
+            if rank == 0 and iter % 10 == 0:
                 dist.all_reduce(loss, op=dist.ReduceOp.AVG)
                 print(f"Iteration {iter} loss: {loss.item()}")
 
