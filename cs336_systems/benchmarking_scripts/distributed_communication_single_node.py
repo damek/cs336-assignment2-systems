@@ -30,7 +30,8 @@ def distributed_demo(rank, world_size, MB, num_iterations, num_warmup_iterations
             total_time += end_time - start_time
         total_time /= num_iterations
         t = torch.tensor([total_time], device="cuda")
-        max_time = torch.all_reduce(t, op=dist.ReduceOp.MAX)
+        max_time = dist.all_reduce(t, op=dist.ReduceOp.MAX)
+        torch.cuda.synchronize()
         # timing[rank] = end_time - start_time
         # dist.all_gather(data, data)
         print(f"rank {rank} time taken: {total_time} seconds")
