@@ -36,7 +36,6 @@ def create_model_and_optimizer(model_dict, optimizer_dict, device):
     lr = optimizer_dict.get("lr", 1e-3)
     weight_decay = optimizer_dict.get("weight_decay", 0.01)
     optimizer = optimizer_class.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
-    optimizer.to(device)
     return model, optimizer
 
 def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs):
