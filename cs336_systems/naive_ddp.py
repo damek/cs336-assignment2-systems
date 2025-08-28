@@ -58,7 +58,6 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs):
         context_length = model_dict["context_length"]
         dataset_len = 100_000
         if rank == 0:
-            import numpy as np
             np.random.seed(0)   
             dataset_len = 100_000
             dataset = np.random.randint(0, vocab_size, size=(dataset_len,), dtype=np.int64)
