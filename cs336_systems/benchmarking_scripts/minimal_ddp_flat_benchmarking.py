@@ -143,10 +143,10 @@ if __name__ == "__main__":
             model_dict = {
                 "vocab_size": 10000,
                 "context_length": seq_len,
-                "d_model": 768,
+                "d_model": 1600,
                 "num_layers": 48,
-                "num_heads": 16,
-                "d_ff": 4*768,
+                "num_heads": 25,
+                "d_ff": 6400,
                 "rope_theta": 10000,    
             }
             print(f"Training DDP model, local_bs: {local_bs}, seq_len: {seq_len}")
