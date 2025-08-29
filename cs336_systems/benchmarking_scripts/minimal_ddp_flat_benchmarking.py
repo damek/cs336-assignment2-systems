@@ -13,7 +13,7 @@ import time
 
 def setup(rank, world_size):
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "29525"
+    os.environ["MASTER_PORT"] = "29526"
     torch.cuda.set_device(rank)
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
     os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
@@ -148,7 +148,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After flatten:')}")
             print(f"[Rank {rank}, Iter {iter}] Flat grad size: {flat_grad.numel() * 4 / 1024**3:.2f}GB")
 
-            dist.all_reduce(flat_grad, op=dist.ReduceOp.AVG)
+            dist.all_reduce(flat_grad_buffer, op=dist.ReduceOp.AVG)
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After all_reduce:')}")
 
             # unflat_grads = manual_unflatten_grads(flat_grad, grads)
@@ -158,9 +158,9 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
                 g.view(-1).copy_(flat_grad_buffer[offset:offset + size])
                 offset += size
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After unflatten:')}")
-            for dst, src in zip(grads, unflat_grads):
-                    dst.copy_(src)
-            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After copy:')}")
+            # for dst, src in zip(grads, unflat_grads):
+            #         dst.copy_(src)
+            # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After copy:')}")
 
 
             torch.cuda.empty_cache() 
