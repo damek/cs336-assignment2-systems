@@ -103,6 +103,8 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         total_time_grad_all_reduce = torch.zeros(1, device=device)
 
         for iter in range(nb_iters + nb_warmup):
+            print("Starting training")
+            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After starting training:')}")
             start_time_train = time.perf_counter()
             if rank == 0:
                 inputs, targets = data.get_batch(dataset, global_bs, context_length, device=device)
@@ -114,6 +116,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             dist.scatter(y_local, scatter_list=y_list, src=0)
 
             # optimizer.zero_grad(set_to_none=True)
+            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After data sharding:')}")
 
             logits = model(x_local)
             loss = nn_utils.cross_entropy(logits, y_local)
