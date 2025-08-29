@@ -6,7 +6,7 @@ import cs336_basics.nn_utils as nn_utils
 import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.multiprocessing.spawn import ProcessRaisedException
-import os, tempfile
+import os
 import numpy as np
 import time
 
