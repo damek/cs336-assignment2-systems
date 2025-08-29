@@ -162,8 +162,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
                     dst.copy_(src)
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After copy:')}")
 
-            del unflat_grads
-            del flat_grad
+
             torch.cuda.empty_cache() 
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After cleanup:')}")
 
