@@ -16,6 +16,8 @@ def setup(rank, world_size):
     os.environ["MASTER_PORT"] = "29505"
     torch.cuda.set_device(rank)
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
+    os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
 
 def create_model_and_optimizer(model_dict, optimizer_dict, device):
     vocab_size = model_dict["vocab_size"]
