@@ -51,6 +51,10 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         torch.cuda.manual_seed_all(0)
         np.random.seed(0)
         model, optimizer = create_model_and_optimizer(model_dict, optimizer_dict, device)
+        dummy_loss = model(torch.zeros(1, model_dict["context_length"], dtype=torch.long, device=device)).mean()
+        dummy_loss.backward()
+        optimizer.step()
+        optimizer.zero_grad(set_to_none=True)
 
         dicts = [None, None]
         if rank == 0: 
