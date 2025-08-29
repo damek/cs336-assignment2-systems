@@ -14,6 +14,9 @@ uv run cs336_systems/benchmarking_scripts/naive_ddp_benchmarking.py
 # Deliverable
 > Deliverable: A description of your benchmarking setup, along with the measured time per training iteration and time spent communicating gradients for each setting.
 
+Conclusion: 50% of time spend on communicating gradients. 
+
+Note: We also scatter the shards of the data to each process. This is included in the total training time.
 
 ## Batch size 2
 ```bash
