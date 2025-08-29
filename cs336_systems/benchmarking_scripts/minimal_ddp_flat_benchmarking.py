@@ -146,7 +146,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
                 offset += size
 
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After flatten:')}")
-            print(f"[Rank {rank}, Iter {iter}] Flat grad size: {flat_grad.numel() * 4 / 1024**3:.2f}GB")
+            print(f"[Rank {rank}, Iter {iter}] Flat grad size: {flat_grad_buffer.numel() * 4 / 1024**3:.2f}GB")
 
             dist.all_reduce(flat_grad_buffer, op=dist.ReduceOp.AVG)
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After all_reduce:')}")
