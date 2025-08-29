@@ -49,12 +49,8 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         np.random.seed(0)
         model, optimizer = create_model_and_optimizer(model_dict, optimizer_dict, device)
 
-        dicts = [None, None]
-        if rank == 0: 
-            dicts = [model.state_dict(), optimizer.state_dict()]
-        dist.broadcast_object_list(dicts, src=0)
-        model.load_state_dict(dicts[0])
-        optimizer.load_state_dict(dicts[1])
+        dist.broadcast_object_list(model.state_dict(), src=0)
+        model.load_state_dict(model.state_dict())
 
         vocab_size = model_dict["vocab_size"]
         context_length = model_dict["context_length"]
