@@ -94,12 +94,12 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             start_time_grad_all_reduce = time.perf_counter()
             torch._utils._flatten_dense_tensors(model.parameters())
             grads = [p.grad for p in model.parameters() if p.grad is not None]
-            flat_grad = torch._utils._flatten_dense_tensors(grads)
+            flat_grad = _flatten_dense_tensors(grads)
             dist.all_reduce(flat_grad, op=dist.ReduceOp.AVG)
-            unflat_grads = torch._utils._unflatten_dense_tensors(flat_grad, grads)
+            unflat_grads = _unflatten_dense_tensors(flat_grad, grads)
             for _, (p, g) in enumerate(zip(model.parameters(), unflat_grads)):
                 p.grad = g
-                
+
             torch.cuda.synchronize()
             end_time_grad_all_reduce = time.perf_counter()
             if iter >= nb_warmup:
