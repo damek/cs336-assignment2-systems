@@ -125,7 +125,7 @@ if __name__ == "__main__":
     world_size = 2
     nb_iters = 10
     local_bss = [2, 4, 8, 16]
-    seq_lengths = [128, 256, 512, 1024]
+    seq_lengths = [128, 256, 512]
     warmup=10
     # XL model
     optimizer_dict = {
