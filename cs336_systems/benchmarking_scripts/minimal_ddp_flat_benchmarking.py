@@ -145,7 +145,7 @@ if __name__ == "__main__":
                 "context_length": seq_len,
                 "d_model": 768,
                 "num_layers": 48,
-                "num_heads": 25,
+                "num_heads": 16,
                 "d_ff": 4*768,
                 "rope_theta": 10000,    
             }
