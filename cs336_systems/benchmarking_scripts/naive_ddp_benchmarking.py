@@ -12,7 +12,7 @@ import time
 
 def setup(rank, world_size):
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = str(29500 + np.random.randint(1000))
+    os.environ["MASTER_PORT"] = str(29500)
     torch.cuda.set_device(rank)
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
