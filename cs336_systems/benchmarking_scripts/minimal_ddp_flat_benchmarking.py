@@ -43,6 +43,11 @@ def create_model_and_optimizer(model_dict, optimizer_dict, device):
     optimizer = optimizer_class.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     return model, optimizer
 
+def get_memory_info(device, prefix=""):
+    allocated = torch.cuda.memory_allocated(device) / 1024**3  # GB
+    reserved = torch.cuda.memory_reserved(device) / 1024**3    # GB
+    return f"{prefix} Allocated: {allocated:.2f}GB, Reserved: {reserved:.2f}GB"
+
 def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_warmup=10):
     setup(rank, world_size)
     device=f"cuda:{rank}"
@@ -95,17 +100,34 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
 
             logits = model(x_local)
             loss = nn_utils.cross_entropy(logits, y_local)
+            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After forward:')}")
+
             loss.backward()
+            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After backward:')}")
+
             start_time_grad_all_reduce = time.perf_counter()
             grads = [p.grad for p in model.parameters() if p.grad is not None]
+            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After collecting grads:')}")
+
             flat_grad = _flatten_dense_tensors(grads)
+            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After flatten:')}")
+            print(f"[Rank {rank}, Iter {iter}] Flat grad size: {flat_grad.numel() * 4 / 1024**3:.2f}GB")
+
             dist.all_reduce(flat_grad, op=dist.ReduceOp.AVG)
+            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After all_reduce:')}")
+
             unflat_grads = _unflatten_dense_tensors(flat_grad, grads)
+            unflat_grads = _unflatten_dense_tensors(flat_grad, grads)
+            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After unflatten:')}")
             for dst, src in zip(grads, unflat_grads):
                     dst.copy_(src)
+            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After copy:')}")
+
             del unflat_grads
             del flat_grad
             torch.cuda.empty_cache() 
+            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After cleanup:')}")
+
             torch.cuda.synchronize()
             end_time_grad_all_reduce = time.perf_counter()
             print("Transferred")
