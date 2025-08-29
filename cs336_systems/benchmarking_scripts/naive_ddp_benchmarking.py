@@ -43,6 +43,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
     setup(rank, world_size)
     device=f"cuda:{rank}"
     try: 
+        print("entered train")
         torch.manual_seed(0)
         torch.cuda.manual_seed_all(0)
         np.random.seed(0)
