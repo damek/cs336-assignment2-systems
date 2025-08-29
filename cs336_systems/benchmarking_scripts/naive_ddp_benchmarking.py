@@ -113,7 +113,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         if rank == 0:
             print(f"total time train: {total_time_train/nb_iters}")
             print(f"total time grad all reduce: {total_time_grad_all_reduce/nb_iters}")
-            print(f"ratio train time to grad all reduce: {total_time_train/total_time_grad_all_reduce}")
+            print(f"ratio train time to grad all reduce: {total_time_grad_all_reduce/total_time_train}")
 
     finally: 
         if dist.is_initialized():
@@ -145,4 +145,13 @@ if __name__ == "__main__":
                 "rope_theta": 10000,    
             }
             print(f"Training DDP model, local_bs: {local_bs}, seq_len: {seq_len}")
-            mp.spawn(fn=train, args=(world_size, nb_iters, model_dict, optimizer_dict, local_bs,warmup), nprocs=world_size, join=True)
+            try: 
+                mp.spawn(fn=train, args=(world_size, nb_iters, model_dict, optimizer_dict, local_bs,warmup), nprocs=world_size, join=True)
+            # If out of memory error, print out of memory, skiping
+            except RuntimeError as e:
+                if "out of memory" in str(e).lower():
+                    print("out of memory")
+                    continue
+
+
+                
