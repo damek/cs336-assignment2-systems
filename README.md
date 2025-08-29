@@ -43,6 +43,9 @@ https://x.com/damekdavis/status/1949507725626347825
     - Results: [distributed_communication_single_node.md](cs336_systems/outputs/distributed_communication_single_node.md)
   - Naive DDP (comparing Single GPU to DDP)
     - Run code [naive_ddp.py](cs336_systems/naive_ddp.py)
+  - Naive DDP Benchmarking on GPT2 XL model
+    - Run code [naive_ddp_benchmarking.py](cs336_systems/benchmarking_scripts/naive_ddp_benchmarking.py)
+    - Results: [naive_ddp_benchmarking.md](cs336_systems/outputs/naive_ddp_benchmarking.md)
 
 # Getting started with my code
 
