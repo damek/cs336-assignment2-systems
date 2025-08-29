@@ -98,7 +98,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
                 total_time_grad_all_reduce += end_time_grad_all_reduce - start_time_grad_all_reduce
 
             optimizer.step()
-            torch.cuda.synchronize
+            torch.cuda.synchronize()
             end_time_train = time.perf_counter()
             if iter >= nb_warmup:
                 total_time_train += end_time_train - start_time_train
