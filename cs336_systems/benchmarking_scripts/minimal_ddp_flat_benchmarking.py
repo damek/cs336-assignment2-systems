@@ -13,12 +13,28 @@ import time
 
 def setup(rank, world_size):
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "29518"
+    os.environ["MASTER_PORT"] = "29519"
     torch.cuda.set_device(rank)
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
     os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
+def manual_flatten_grads(grads):
+    total_size = sum(g.numel() for g in grads)
+    flat = torch.empty(total_size, dtype=grads[0].dtype, device=grads[0].device)
+    offset = 0
+    for g in grads:
+        flat[offset:offset + g.numel()] = g.view(-1)
+        offset += g.numel()
+    return flat
 
+def manual_unflatten_grads(flat, grads):
+    unflat = []
+    offset = 0
+    for g in grads:
+        size = g.numel()
+        unflat.append(flat[offset:offset + size].view_as(g))
+        offset += size
+    return unflat
 def create_model_and_optimizer(model_dict, optimizer_dict, device):
     vocab_size = model_dict["vocab_size"]
     context_length = model_dict["context_length"]
@@ -109,15 +125,14 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             grads = [p.grad for p in model.parameters() if p.grad is not None]
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After collecting grads:')}")
 
-            flat_grad = _flatten_dense_tensors(grads)
+            flat_grad = manual_flatten_grads(grads)
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After flatten:')}")
             print(f"[Rank {rank}, Iter {iter}] Flat grad size: {flat_grad.numel() * 4 / 1024**3:.2f}GB")
 
             dist.all_reduce(flat_grad, op=dist.ReduceOp.AVG)
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After all_reduce:')}")
 
-            unflat_grads = _unflatten_dense_tensors(flat_grad, grads)
-            unflat_grads = _unflatten_dense_tensors(flat_grad, grads)
+            unflat_grads = manual_unflatten_grads(flat_grad, grads)
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After unflatten:')}")
             for dst, src in zip(grads, unflat_grads):
                     dst.copy_(src)
