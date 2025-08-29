@@ -93,9 +93,10 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             loss = nn_utils.cross_entropy(logits, y_local)
             loss.backward()
             start_time_grad_all_reduce = time.perf_counter()
-            flat_grad = _flatten_dense_tensors([p.grad.detach() for p in model.parameters() if p.grad is not None])
+            grads = [p.grad for p in model.parameters() if p.grad is not None]
+            flat_grad = _flatten_dense_tensors(grads)
             dist.all_reduce(flat_grad, op=dist.ReduceOp.AVG)
-            for dst, src in zip(model.parameters(), _unflatten_dense_tensors(flat_grad, model.parameters())):
+            for dst, src in zip(grads, _unflatten_dense_tensors(flat_grad, grads)):
                     dst.copy_(src)
             # del flat_grad
             # torch.cuda.empty_cache() 
