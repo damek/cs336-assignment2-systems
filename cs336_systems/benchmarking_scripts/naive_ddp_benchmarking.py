@@ -48,7 +48,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         torch.cuda.manual_seed_all(0)
         np.random.seed(0)
         model, optimizer = create_model_and_optimizer(model_dict, optimizer_dict, device)
-
+        print("created model and optimizer")
         dicts = [None, None]
         if rank == 0: 
             dicts = [model.state_dict(), optimizer.state_dict()]
