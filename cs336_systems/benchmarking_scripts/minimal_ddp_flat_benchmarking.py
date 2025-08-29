@@ -96,10 +96,11 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             grads = [p.grad for p in model.parameters() if p.grad is not None]
             flat_grad = _flatten_dense_tensors(grads)
             dist.all_reduce(flat_grad, op=dist.ReduceOp.AVG)
-            for dst, src in zip(grads, _unflatten_dense_tensors(flat_grad, grads)):
+            unflat_grads = _unflatten_dense_tensors(flat_grad, grads)
+            for dst, src in zip(grads, unflat_grads):
                     dst.copy_(src)
-            del flat_grad
             del unflat_grads
+            del flat_grad
             torch.cuda.empty_cache() 
             torch.cuda.synchronize()
             end_time_grad_all_reduce = time.perf_counter()
