@@ -73,6 +73,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         total_time_grad_all_reduce = torch.zeros(1, device=device)
 
         for iter in range(nb_iters + nb_warmup):
+            print("started loop")
             start_time_train = time.perf_counter()
             if rank == 0:
                 inputs, targets = data.get_batch(dataset, global_bs, context_length, device=device)
@@ -96,13 +97,13 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             end_time_grad_all_reduce = time.perf_counter()
             if iter >= nb_warmup:
                 total_time_grad_all_reduce += end_time_grad_all_reduce - start_time_grad_all_reduce
-
+            print("finished grad all reduce")
             optimizer.step()
             torch.cuda.synchronize()
             end_time_train = time.perf_counter()
             if iter >= nb_warmup:
                 total_time_train += end_time_train - start_time_train
-    
+            print("finished train")
             if iter % 10 == 0:
                 loss_avg = loss.detach()
                 dist.all_reduce(loss_avg, op=dist.ReduceOp.AVG)
