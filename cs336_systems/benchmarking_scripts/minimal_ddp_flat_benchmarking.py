@@ -98,6 +98,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             for dst, src in zip(grads, _unflatten_dense_tensors(flat_grad, grads)):
                     dst.copy_(src)
             del flat_grad
+            torch.cuda.empty_cache() 
 
             torch.cuda.synchronize()
             end_time_grad_all_reduce = time.perf_counter()
