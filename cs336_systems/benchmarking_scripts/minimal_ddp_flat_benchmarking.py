@@ -81,10 +81,12 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         dicts = [None, None]
         if rank == 0: 
             dicts = [model.state_dict(), optimizer.state_dict()]
+        print(f"[Rank {rank}, Iter 0] {get_memory_info(device, 'Just before broadcast of state dicts/optimizer dicts:')}")
         dist.broadcast_object_list(dicts, src=0)
         model.load_state_dict(dicts[0])
+        print(f"[Rank {rank}, Iter 0] {get_memory_info(device, 'After loading state dict in model:')}")
         optimizer.load_state_dict(dicts[1])
-        print(f"[Rank {rank}, Iter 0] {get_memory_info(device, 'After loading state dict:')}")
+        print(f"[Rank {rank}, Iter 0] {get_memory_info(device, 'After loading state dict in optimizer:')}")
 
         vocab_size = model_dict["vocab_size"]
         context_length = model_dict["context_length"]
