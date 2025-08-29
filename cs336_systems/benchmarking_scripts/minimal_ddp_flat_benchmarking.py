@@ -13,7 +13,7 @@ import time
 
 def setup(rank, world_size):
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "29507"
+    os.environ["MASTER_PORT"] = "29517"
     torch.cuda.set_device(rank)
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
     os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
