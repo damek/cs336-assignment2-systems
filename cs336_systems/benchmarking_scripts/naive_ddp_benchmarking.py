@@ -43,18 +43,15 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
     setup(rank, world_size)
     device=f"cuda:{rank}"
     try: 
-        print("entered train")
         torch.manual_seed(0)
         torch.cuda.manual_seed_all(0)
         np.random.seed(0)
         model, optimizer = create_model_and_optimizer(model_dict, optimizer_dict, device)
-        print("created model and optimizer")
+
         dicts = [None, None]
         if rank == 0: 
             dicts = [model.state_dict(), optimizer.state_dict()]
-        print("just before broadcast")
         dist.broadcast_object_list(dicts, src=0)
-        print("just after broadcast")
         model.load_state_dict(dicts[0])
         optimizer.load_state_dict(dicts[1])
 
@@ -74,9 +71,8 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
 
         total_time_train = torch.zeros(1, device=device)
         total_time_grad_all_reduce = torch.zeros(1, device=device)
-        print("created total time tensors")
+
         for iter in range(nb_iters + nb_warmup):
-            print("started loop")
             start_time_train = time.perf_counter()
             if rank == 0:
                 inputs, targets = data.get_batch(dataset, global_bs, context_length, device=device)
@@ -100,14 +96,12 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             end_time_grad_all_reduce = time.perf_counter()
             if iter >= nb_warmup:
                 total_time_grad_all_reduce += end_time_grad_all_reduce - start_time_grad_all_reduce
-            print("finished grad all reduce")
             optimizer.step()
             torch.cuda.synchronize()
             end_time_train = time.perf_counter()
             if iter >= nb_warmup:
                 total_time_train += end_time_train - start_time_train
-            print("finished train")
-            if iter % 10 == 0:
+            if iter % 20 == 0:
                 loss_avg = loss.detach()
                 dist.all_reduce(loss_avg, op=dist.ReduceOp.AVG)
                 if rank == 0:
