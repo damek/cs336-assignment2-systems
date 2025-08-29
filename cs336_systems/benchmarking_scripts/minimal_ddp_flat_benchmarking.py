@@ -84,6 +84,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         dist.broadcast_object_list(dicts, src=0)
         model.load_state_dict(dicts[0])
         optimizer.load_state_dict(dicts[1])
+        print(f"[Rank {rank}, Iter 0] {get_memory_info(device, 'After loading state dict:')}")
 
         vocab_size = model_dict["vocab_size"]
         context_length = model_dict["context_length"]
@@ -91,6 +92,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         if rank == 0:
             np.random.seed(0)   
             dataset = np.random.randint(0, vocab_size, size=(dataset_len,), dtype=np.int64)
+            print(f"[Rank {rank}, Iter 0] {get_memory_info(device, 'After dataset generation:')}")
         else:
             dataset = None  
         global_bs = local_bs*world_size
