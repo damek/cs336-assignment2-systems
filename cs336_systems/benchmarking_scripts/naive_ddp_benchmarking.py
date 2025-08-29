@@ -101,11 +101,11 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             end_time_train = time.perf_counter()
             if iter >= nb_warmup:
                 total_time_train += end_time_train - start_time_train
-            if iter % 20 == 0:
-                loss_avg = loss.detach()
-                dist.all_reduce(loss_avg, op=dist.ReduceOp.AVG)
-                if rank == 0:
-                    print(f"Iteration {iter} loss: {loss_avg.item()}")
+            # if iter % 20 == 0:
+                # loss_avg = loss.detach()
+                # dist.all_reduce(loss_avg, op=dist.ReduceOp.AVG)
+                # if rank == 0:
+                    # print(f"Iteration {iter} loss: {loss_avg.item()}")
 
         dist.all_reduce(total_time_train, op=dist.ReduceOp.MAX)
         dist.all_reduce(total_time_grad_all_reduce, op=dist.ReduceOp.MAX)
