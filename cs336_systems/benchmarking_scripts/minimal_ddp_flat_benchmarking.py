@@ -87,7 +87,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             dist.scatter(x_local, scatter_list=x_list, src=0)
             dist.scatter(y_local, scatter_list=y_list, src=0)
 
-            optimizer.zero_grad(set_to_none=True)
+            # optimizer.zero_grad(set_to_none=True)
 
             logits = model(x_local)
             loss = nn_utils.cross_entropy(logits, y_local)
@@ -108,6 +108,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             if iter >= nb_warmup:
                 total_time_grad_all_reduce += end_time_grad_all_reduce - start_time_grad_all_reduce
             optimizer.step()
+            optimizer.zero_grad(set_to_none=True)
             print("Stepped")
             torch.cuda.synchronize()
             end_time_train = time.perf_counter()
