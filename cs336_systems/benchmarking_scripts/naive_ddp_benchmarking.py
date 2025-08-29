@@ -5,6 +5,7 @@ import cs336_basics.optimizer as optimizer_class
 import cs336_basics.nn_utils as nn_utils
 import torch.distributed as dist
 import torch.multiprocessing as mp
+from torch.multiprocessing.spawn import ProcessRaisedException
 import os, tempfile
 import numpy as np
 import time
@@ -101,11 +102,6 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             end_time_train = time.perf_counter()
             if iter >= nb_warmup:
                 total_time_train += end_time_train - start_time_train
-            # if iter % 20 == 0:
-                # loss_avg = loss.detach()
-                # dist.all_reduce(loss_avg, op=dist.ReduceOp.AVG)
-                # if rank == 0:
-                    # print(f"Iteration {iter} loss: {loss_avg.item()}")
 
         dist.all_reduce(total_time_train, op=dist.ReduceOp.MAX)
         dist.all_reduce(total_time_grad_all_reduce, op=dist.ReduceOp.MAX)
@@ -124,7 +120,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
 if __name__ == "__main__":
     world_size = 2
     nb_iters = 10
-    local_bss = [2, 4, 8, 16]
+    local_bss = [2, 4]
     seq_lengths = [128, 256, 512]
     warmup=10
     # XL model
@@ -147,11 +143,11 @@ if __name__ == "__main__":
             print(f"Training DDP model, local_bs: {local_bs}, seq_len: {seq_len}")
             try: 
                 mp.spawn(fn=train, args=(world_size, nb_iters, model_dict, optimizer_dict, local_bs,warmup), nprocs=world_size, join=True)
-            # If out of memory error, print out of memory, skiping
-            except RuntimeError as e:
-                if "out of memory" in str(e).lower():
-                    print("out of memory")
+            # If out of memory error, print out of memory, skipping
+            except ProcessRaisedException as e:           
+                if "out of memory" in str(e).lower():    
+                    print("out of memory (skipping this config)")
                     continue
-
+                raise  
 
                 
