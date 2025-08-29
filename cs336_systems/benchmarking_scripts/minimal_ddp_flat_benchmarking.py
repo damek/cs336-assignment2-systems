@@ -13,7 +13,7 @@ import time
 
 def setup(rank, world_size):
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "29504"
+    os.environ["MASTER_PORT"] = "29505"
     torch.cuda.set_device(rank)
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
@@ -59,10 +59,9 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
 
         vocab_size = model_dict["vocab_size"]
         context_length = model_dict["context_length"]
-        dataset_len = 100_000
+        dataset_len = 1000
         if rank == 0:
             np.random.seed(0)   
-            dataset_len = 100_000
             dataset = np.random.randint(0, vocab_size, size=(dataset_len,), dtype=np.int64)
         else:
             dataset = None  
