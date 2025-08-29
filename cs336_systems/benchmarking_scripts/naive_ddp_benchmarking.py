@@ -72,7 +72,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
 
         total_time_train = torch.zeros(1, device=device)
         total_time_grad_all_reduce = torch.zeros(1, device=device)
-
+        print("created total time tensors")
         for iter in range(nb_iters + nb_warmup):
             print("started loop")
             start_time_train = time.perf_counter()
