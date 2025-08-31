@@ -144,39 +144,37 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
 
             flat_grad = manual_flatten_grads(grads)
             offset = 0
-            for g in grads:
-                size = g.numel()
-                flat_grad_buffer[offset:offset + size].copy_(g.view(-1))
-                offset += size
+            for p in model.parameters():
+                if p.grad is not None:
+                    size = p.grad.numel()
+                    flat_grad_buffer[offset:offset + size].copy_(p.grad.view(-1))
+                    offset += size
 
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After flatten:')}")
             print(f"[Rank {rank}, Iter {iter}] Flat grad size: {flat_grad_buffer.numel() * 4 / 1024**3:.2f}GB")
-            # for p in model.parameters():
-            #     if p.grad is not None:
-            #         dist.all_reduce(p.grad, op=dist.ReduceOp.AVG)
+
             start_time_grad_all_reduce = time.perf_counter()
             dist.all_reduce(flat_grad_buffer, op=dist.ReduceOp.AVG)
             torch.cuda.synchronize()
             end_time_grad_all_reduce = time.perf_counter()
+            print("Transferred")
+            if iter >= nb_warmup:
+                total_time_grad_all_reduce += end_time_grad_all_reduce - start_time_grad_all_reduce
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After all_reduce:')}")
 
-            unflat_grads = manual_unflatten_grads(flat_grad, grads)
             offset = 0
-            for g in grads:
-                size = g.numel()
-                g.view(-1).copy_(flat_grad_buffer[offset:offset + size])
+            for p in model.parameters():
+                if p.grad is not None:
+                    size = p.grad.numel()
+                    p.grad.view(-1).copy_(flat_grad_buffer[offset:offset + size])
                 offset += size
+                
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After unflatten:')}")
-            for dst, src in zip(grads, unflat_grads):
-                    dst.copy_(src)
-            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After copy:')}")
 
 
             # torch.cuda.empty_cache() 
             # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After cleanup:')}")
-            print("Transferred")
-            if iter >= nb_warmup:
-                total_time_grad_all_reduce += end_time_grad_all_reduce - start_time_grad_all_reduce
+
             optimizer.step()
             optimizer.zero_grad(set_to_none=True)
             print("Stepped")
