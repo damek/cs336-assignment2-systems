@@ -23,15 +23,15 @@ Note: We also scatter the shards of the data to each process. This is included i
 Training DDP model, local_bs: 2, seq_len: 128
 total time train: tensor([0.7833], device='cuda:0')
 total time grad all reduce: tensor([0.4182], device='cuda:0')
-ratio train time to grad all reduce: tensor([0.5339], device='cuda:0')
+ratio grad all reduce to train time: tensor([0.5339], device='cuda:0')
 Training DDP model, local_bs: 2, seq_len: 256
 total time train: tensor([0.8051], device='cuda:0')
 total time grad all reduce: tensor([0.4425], device='cuda:0')
-ratio train time to grad all reduce: tensor([0.5496], device='cuda:0')
+ratio grad all reduce to train time: tensor([0.5496], device='cuda:0')
 Training DDP model, local_bs: 2, seq_len: 512
 total time train: tensor([0.9033], device='cuda:0')
 total time grad all reduce: tensor([0.4576], device='cuda:0')
-ratio train time to grad all reduce: tensor([0.5066], device='cuda:0')
+ratio grad all reduce to train time: tensor([0.5066], device='cuda:0')
 ```
 
 ## Batch size 4
@@ -39,11 +39,11 @@ ratio train time to grad all reduce: tensor([0.5066], device='cuda:0')
 Training DDP model, local_bs: 4, seq_len: 128
 total time train: tensor([0.7958], device='cuda:0')
 total time grad all reduce: tensor([0.4395], device='cuda:0')
-ratio train time to grad all reduce: tensor([0.5523], device='cuda:0')
+ratio grad all reduce to train time: tensor([0.5523], device='cuda:0')
 Training DDP model, local_bs: 4, seq_len: 256
 total time train: tensor([0.8811], device='cuda:0')
 total time grad all reduce: tensor([0.4555], device='cuda:0')
-ratio train time to grad all reduce: tensor([0.5170], device='cuda:0')
+ratio grad all reduce to train time: tensor([0.5170], device='cuda:0')
 Training DDP model, local_bs: 4, seq_len: 512
 W0829 17:22:16.079000 5638 torch/multiprocessing/spawn.py:169] Terminating process 6979 via signal SIGTERM
 out of memory (skipping this config)
