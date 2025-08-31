@@ -30,7 +30,6 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
     
     def finish_gradient_synchronization(self):
         ws = dist.get_world_size() if (dist.is_available() and dist.is_initialized()) else 1
-        print(f"ws: {ws}")
         for p, work in self._pending:
             work.wait()
             if ws > 1 and p.grad is not None:
