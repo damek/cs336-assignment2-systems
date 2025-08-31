@@ -139,7 +139,6 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             loss.backward()
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After backward:')}")
 
-            start_time_grad_all_reduce = time.perf_counter()
             grads = [p.grad for p in model.parameters() if p.grad is not None]
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After collecting grads:')}")
 
@@ -155,7 +154,10 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             # for p in model.parameters():
             #     if p.grad is not None:
             #         dist.all_reduce(p.grad, op=dist.ReduceOp.AVG)
+            start_time_grad_all_reduce = time.perf_counter()
             dist.all_reduce(flat_grad_buffer, op=dist.ReduceOp.AVG)
+            torch.cuda.synchronize()
+            end_time_grad_all_reduce = time.perf_counter()
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After all_reduce:')}")
 
             unflat_grads = manual_unflatten_grads(flat_grad, grads)
@@ -172,9 +174,6 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
 
             # torch.cuda.empty_cache() 
             # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After cleanup:')}")
-
-            torch.cuda.synchronize()
-            end_time_grad_all_reduce = time.perf_counter()
             print("Transferred")
             if iter >= nb_warmup:
                 total_time_grad_all_reduce += end_time_grad_all_reduce - start_time_grad_all_reduce
