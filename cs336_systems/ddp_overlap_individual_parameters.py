@@ -10,6 +10,7 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
 
         for t in list(module.parameters()) + list(module.buffers()):
             dist.broadcast(t.data, src=0)
+
         for p in module.parameters():
             if p.requires_grad:
                 p.register_post_accumulate_grad_hook(self._make_hook(p))
@@ -21,6 +22,7 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
                 return
             # work = dist.all_reduce(grad, op=dist.ReduceOp.AVG, async_op=True) # gloo doesn't have avg!??!?!
             work = dist.all_reduce(grad, op=dist.ReduceOp.SUM, async_op=True)
+            self._pending.append((p, work))
         return _hook
     
     def forward(self, *args, **kwargs):
