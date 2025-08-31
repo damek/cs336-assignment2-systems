@@ -35,4 +35,5 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
             work.wait()
             if ws > 1:
                 p.grad.div_(ws)
+                print(f"p.grad: {p.grad}")
         self._pending.clear()
