@@ -165,8 +165,8 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After copy:')}")
 
 
-            torch.cuda.empty_cache() 
-            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After cleanup:')}")
+            # torch.cuda.empty_cache() 
+            # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After cleanup:')}")
 
             torch.cuda.synchronize()
             end_time_grad_all_reduce = time.perf_counter()
