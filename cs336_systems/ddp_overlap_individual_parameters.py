@@ -28,7 +28,23 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
 
     
     def forward(self, *args, **kwargs):
-        return self.module(*args, **kwargs)
+        # Clear any pending operations from previous forward pass
+        self._pending.clear()
+        
+        # Forward through the wrapped module
+        output = self.module(*args, **kwargs)
+        
+        # Register a hook on the output to finish gradient sync after backward
+        if torch.is_tensor(output):
+            output.register_hook(lambda grad: self._backward_hook(grad))
+        elif isinstance(output, tuple):
+            # If output is a tuple, register on the first tensor
+            for o in output:
+                if torch.is_tensor(o) and o.requires_grad:
+                    o.register_hook(lambda grad: self._backward_hook(grad))
+                    break
+        
+        return output
     
     def finish_gradient_synchronization(self):
         ws = dist.get_world_size() if (dist.is_available() and dist.is_initialized()) else 1
