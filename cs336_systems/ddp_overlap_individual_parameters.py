@@ -13,17 +13,16 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
 
             for p in module.parameters():
                 if p.requires_grad:
-                    p.register_post_accumulate_grad_hook(self._make_hook(p))
+                    p.register_post_accumulate_grad_hook(lambda p: self._hook(p))
 
     def _make_hook(self, p: torch.Tensor): 
-        def _hook(param):   
-            ws = dist.get_world_size() if (dist.is_available() and dist.is_initialized()) else 1
-            if param.grad is None or ws == 1:
-                return
-            # work = dist.all_reduce(grad, op=dist.ReduceOp.AVG, async_op=True) # gloo doesn't have avg!??!?!
-            work = dist.all_reduce(param.grad, op=dist.ReduceOp.SUM, async_op=True)
-            self._pending.append((param, work))
-        return _hook
+        ws = dist.get_world_size() if (dist.is_available() and dist.is_initialized()) else 1
+        if p.grad is None or ws == 1:
+            return
+        # work = dist.all_reduce(grad, op=dist.ReduceOp.AVG, async_op=True) # gloo doesn't have avg!??!?!
+        work = dist.all_reduce(p.grad, op=dist.ReduceOp.SUM, async_op=True)
+        self._pending.append((p, work))
+
     
     def forward(self, *args, **kwargs):
         return self.module(*args, **kwargs)
