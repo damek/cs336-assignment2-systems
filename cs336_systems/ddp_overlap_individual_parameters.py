@@ -1,3 +1,6 @@
+import torch
+import torch.distributed as dist
+
 class DDPOverlapIndividualParametersManual(torch.nn.Module):
     """Version that requires manual call to finish_gradient_synchronization()"""
     
