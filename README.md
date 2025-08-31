@@ -46,6 +46,9 @@ https://x.com/damekdavis/status/1949507725626347825
   - Naive DDP Benchmarking on GPT2 XL model
     - Run code [naive_ddp_benchmarking.py](cs336_systems/benchmarking_scripts/naive_ddp_benchmarking.py)
     - Results: [naive_ddp_benchmarking.md](cs336_systems/outputs/naive_ddp_benchmarking.md)
+  - Minimal DDP Flat Benchmarking on GPT2 XL model
+    - Run code [minimal_ddp_flat_benchmarking.py](cs336_systems/benchmarking_scripts/minimal_ddp_flat_benchmarking.py)
+    - Results: [minimal_ddp_flat_benchmarking.md](cs336_systems/outputs/minimal_ddp_flat_benchmarking.md)
 
 # Getting started with my code
 
