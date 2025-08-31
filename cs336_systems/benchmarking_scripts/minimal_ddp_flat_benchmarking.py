@@ -135,8 +135,8 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After backward:')}")
 
             start_time_grad_all_reduce = time.perf_counter()
-            grads = [p.grad for p in model.parameters() if p.grad is not None]
-            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After collecting grads:')}")
+            # grads = [p.grad for p in model.parameters() if p.grad is not None]
+            # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After collecting grads:')}")
 
             # flat_grad = manual_flatten_grads(grads)
             # offset = 0
