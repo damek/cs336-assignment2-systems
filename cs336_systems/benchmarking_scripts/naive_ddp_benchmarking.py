@@ -105,7 +105,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         if rank == 0:
             print(f"total time train: {total_time_train/nb_iters}")
             print(f"total time grad all reduce: {total_time_grad_all_reduce/nb_iters}")
-            print(f"ratio train time to grad all reduce: {total_time_grad_all_reduce/total_time_train}")
+            print(f"ratio grad all reduce to train time: {total_time_grad_all_reduce/total_time_train}")
 
     finally: 
         if dist.is_initialized():
