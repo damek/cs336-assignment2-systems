@@ -82,17 +82,6 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         dummy_loss.backward()
         optimizer.step()
         optimizer.zero_grad(set_to_none=True)
-        print(f"[Rank {rank}, Iter 0] {get_memory_info(device, 'After dummy forward, backward, and optimizer step:')}")
-
-        # dicts = [None, None]
-        # if rank == 0: 
-        #     dicts = [model.state_dict(), optimizer.state_dict()]
-        # print(f"[Rank {rank}, Iter 0] {get_memory_info(device, 'Just before broadcast of state dicts/optimizer dicts:')}")
-        # dist.broadcast_object_list(dicts, src=0)
-        # model.load_state_dict(dicts[0])
-        # print(f"[Rank {rank}, Iter 0] {get_memory_info(device, 'After loading state dict in model:')}")
-        # optimizer.load_state_dict(dicts[1])
-        # print(f"[Rank {rank}, Iter 0] {get_memory_info(device, 'After loading state dict in optimizer:')}")
 
         vocab_size = model_dict["vocab_size"]
         context_length = model_dict["context_length"]
@@ -100,7 +89,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         if rank == 0:
             np.random.seed(0)   
             dataset = np.random.randint(0, vocab_size, size=(dataset_len,), dtype=np.int64)
-            print(f"[Rank {rank}, Iter 0] {get_memory_info(device, 'After dataset generation:')}")
+            # print(f"[Rank {rank}, Iter 0] {get_memory_info(device, 'After dataset generation:')}")
         else:
             dataset = None  
         global_bs = local_bs*world_size
@@ -114,11 +103,11 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
 
         total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
         flat_grad_buffer = torch.zeros(total_params, dtype=torch.float32, device=device)
-        print(f"[Rank {rank}] Pre-allocated buffer size: {flat_grad_buffer.numel() * 4 / 1024**3:.2f}GB")
+        # print(f"[Rank {rank}] Pre-allocated buffer size: {flat_grad_buffer.numel() * 4 / 1024**3:.2f}GB")
 
         for iter in range(nb_iters + nb_warmup):
-            print("Starting training")
-            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After starting training:')}")
+            # print("Starting training")
+            # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After starting training:')}")
             start_time_train = time.perf_counter()
             if rank == 0:
                 inputs, targets = data.get_batch(dataset, global_bs, context_length, device=device)
@@ -130,17 +119,17 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             dist.scatter(y_local, scatter_list=y_list, src=0)
 
             # optimizer.zero_grad(set_to_none=True)
-            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After data sharding:')}")
+            # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After data sharding:')}")
 
             logits = model(x_local)
             loss = nn_utils.cross_entropy(logits, y_local)
-            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After forward:')}")
+            # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After forward:')}")
 
             loss.backward()
-            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After backward:')}")
+            # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After backward:')}")
 
             grads = [p.grad for p in model.parameters() if p.grad is not None]
-            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After collecting grads:')}")
+            # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After collecting grads:')}")
 
             flat_grad = manual_flatten_grads(grads)
             offset = 0
@@ -150,17 +139,17 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
                     flat_grad_buffer[offset:offset + size].copy_(p.grad.view(-1))
                     offset += size
 
-            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After flatten:')}")
-            print(f"[Rank {rank}, Iter {iter}] Flat grad size: {flat_grad_buffer.numel() * 4 / 1024**3:.2f}GB")
+            # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After flatten:')}")
+            # print(f"[Rank {rank}, Iter {iter}] Flat grad size: {flat_grad_buffer.numel() * 4 / 1024**3:.2f}GB")
 
             start_time_grad_all_reduce = time.perf_counter()
             dist.all_reduce(flat_grad_buffer, op=dist.ReduceOp.AVG)
             torch.cuda.synchronize()
             end_time_grad_all_reduce = time.perf_counter()
-            print("Transferred")
+            # print("Transferred")
             if iter >= nb_warmup:
                 total_time_grad_all_reduce += end_time_grad_all_reduce - start_time_grad_all_reduce
-            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After all_reduce:')}")
+            # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After all_reduce:')}")
 
             offset = 0
             for p in model.parameters():
@@ -169,15 +158,11 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
                     p.grad.view(-1).copy_(flat_grad_buffer[offset:offset + size])
                 offset += size
                 
-            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After unflatten:')}")
-
-
-            # torch.cuda.empty_cache() 
-            # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After cleanup:')}")
+            # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After unflatten:')}")
 
             optimizer.step()
             optimizer.zero_grad(set_to_none=True)
-            print("Stepped")
+            # print("Stepped")
             torch.cuda.synchronize()
             end_time_train = time.perf_counter()
             if iter >= nb_warmup:
@@ -194,7 +179,6 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
     finally: 
         if dist.is_initialized():
             dist.destroy_process_group()
-
 
 
 if __name__ == "__main__":
