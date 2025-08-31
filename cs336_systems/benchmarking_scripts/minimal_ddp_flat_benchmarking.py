@@ -165,9 +165,9 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
                 g.view(-1).copy_(flat_grad_buffer[offset:offset + size])
                 offset += size
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After unflatten:')}")
-            # for dst, src in zip(grads, unflat_grads):
-            #         dst.copy_(src)
-            # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After copy:')}")
+            for dst, src in zip(grads, unflat_grads):
+                    dst.copy_(src)
+            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After copy:')}")
 
 
             # torch.cuda.empty_cache() 
