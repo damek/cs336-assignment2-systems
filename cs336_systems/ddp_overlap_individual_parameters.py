@@ -18,8 +18,8 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
     def _make_hook(self, p: torch.Tensor): 
         def _hook(grad):   
             ws = dist.get_world_size() if (dist.is_available() and dist.is_initialized()) else 1
-            # if grad is None or ws == 1:
-            #     return
+            if grad is None or ws == 1:
+                return
             # work = dist.all_reduce(grad, op=dist.ReduceOp.AVG, async_op=True) # gloo doesn't have avg!??!?!
             work = dist.all_reduce(grad, op=dist.ReduceOp.SUM, async_op=True)
             self._pending.append((p, work))
