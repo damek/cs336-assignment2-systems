@@ -1,39 +1,43 @@
 import torch
 import torch.distributed as dist
-import logging
-
-logger = logging.getLogger(__name__)
 
 class DDPOverlapIndividualParameters(torch.nn.Module):
-    """
-    Debug version with logging to understand what's happening.
-    """
     def __init__(self, module: torch.nn.Module):
         super().__init__()
+        # Store the module as an attribute
         self.module = module
-        self.step_count = 0
+        self._pending = []
         
         # Broadcast parameters and buffers from rank 0 to all other ranks
         if dist.is_initialized() and dist.get_world_size() > 1:
-            rank = dist.get_rank()
-            logger.info(f"Rank {rank}: Broadcasting parameters from rank 0")
-            
             with torch.no_grad():
-                for name, p in module.named_parameters():
-                    before = p.data.clone()
+                for p in module.parameters():
                     dist.broadcast(p.data, src=0)
-                    after = p.data.clone()
-                    changed = not torch.allclose(before, after)
-                    logger.debug(f"Rank {rank}: Param {name} changed after broadcast: {changed}")
-                    
-                for name, b in module.named_buffers():
+                for b in module.buffers():
                     dist.broadcast(b, src=0)
+
+            # Register hooks for gradient synchronization
+            for p in module.parameters():
+                if p.requires_grad:
+                    if not p.is_leaf:
+                        raise RuntimeError("Parameter is not a leaf tensor")
+                    p.register_post_accumulate_grad_hook(self._hook)
+
+    def _hook(self, param):   
+        if not dist.is_initialized() or dist.get_world_size() <= 1:
+            return
+        
+        if param.grad is None:
+            return
+            
+        # Start async all_reduce to sum gradients across all ranks
+        work = dist.all_reduce(param.grad, op=dist.ReduceOp.SUM, async_op=True)
+        self._pending.append((param, work))
 
     def forward(self, *args, **kwargs):
         return self.module(*args, **kwargs)
     
     def finish_gradient_synchronization(self):
-        """Synchronize all gradients after backward pass."""
         if not dist.is_initialized():
             return
             
@@ -41,36 +45,39 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
         if world_size <= 1:
             return
         
-        rank = dist.get_rank()
-        self.step_count += 1
-        logger.info(f"Rank {rank}: Starting gradient sync for step {self.step_count}")
+        # Wait for all async operations to complete and then divide by world size
+        for p, work in self._pending:
+            work.wait()
+            if p.grad is not None:
+                p.grad.div_(world_size)
         
-        # Synchronize gradients for all parameters that have them
-        with torch.no_grad():
-            for name, p in self.module.named_parameters():
-                if p.grad is not None:
-                    # Log gradient stats before sync
-                    grad_mean_before = p.grad.data.mean().item()
-                    grad_norm_before = p.grad.data.norm().item()
-                    
-                    # Synchronously all-reduce (sum) the gradients
-                    dist.all_reduce(p.grad.data, op=dist.ReduceOp.SUM)
-                    
-                    # Average by dividing by world size
-                    p.grad.data.div_(world_size)
-                    
-                    # Log gradient stats after sync
-                    grad_mean_after = p.grad.data.mean().item()
-                    grad_norm_after = p.grad.data.norm().item()
-                    
-                    logger.debug(f"Rank {rank}, Step {self.step_count}, Param {name}: "
-                               f"grad mean {grad_mean_before:.6f} -> {grad_mean_after:.6f}, "
-                               f"norm {grad_norm_before:.6f} -> {grad_norm_after:.6f}")
-                else:
-                    logger.debug(f"Rank {rank}, Step {self.step_count}, Param {name}: No gradient")
-        
-        logger.info(f"Rank {rank}: Completed gradient sync for step {self.step_count}")
+        # Clear pending operations for next iteration
+        self._pending.clear()
     
-    # Make the wrapper completely transparent
-    def __getattr__(self, name):
-        return getattr(self.module, name)
+    # Explicitly forward the methods that the test might need
+    def parameters(self, recurse=True):
+        return self.module.parameters(recurse=recurse)
+    
+    def named_parameters(self, prefix='', recurse=True, remove_duplicate=True):
+        return self.module.named_parameters(prefix=prefix, recurse=recurse, remove_duplicate=remove_duplicate)
+    
+    def buffers(self, recurse=True):
+        return self.module.buffers(recurse=recurse)
+    
+    def named_buffers(self, prefix='', recurse=True, remove_duplicate=True):
+        return self.module.named_buffers(prefix=prefix, recurse=recurse, remove_duplicate=remove_duplicate)
+    
+    def state_dict(self, *args, **kwargs):
+        return self.module.state_dict(*args, **kwargs)
+    
+    def load_state_dict(self, *args, **kwargs):
+        return self.module.load_state_dict(*args, **kwargs)
+    
+    def train(self, mode=True):
+        self.module.train(mode)
+        return super().train(mode)
+    
+    def eval(self):
+        self.module.eval()
+        return super().eval()
+    
