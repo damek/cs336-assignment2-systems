@@ -7,13 +7,13 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
         self.module = module
         self._pending = []
         # dist.broadcast_object_list(module.state_dict(), src=0) # this pickles the entire object and then sends. Apparently you lose some benefits because we must do the pickle on the CPU and then copy back to GPU then send.
+        with torch.no_grad():
+            for t in list(module.parameters()) + list(module.buffers()):
+                dist.broadcast(t.data, src=0)
 
-        for t in list(module.parameters()) + list(module.buffers()):
-            dist.broadcast(t.data, src=0)
-
-        for p in module.parameters():
-            if p.requires_grad:
-                p.register_post_accumulate_grad_hook(self._make_hook(p))
+            for p in module.parameters():
+                if p.requires_grad:
+                    p.register_post_accumulate_grad_hook(self._make_hook(p))
 
     def _make_hook(self, p: torch.Tensor): 
         def _hook(grad):   
