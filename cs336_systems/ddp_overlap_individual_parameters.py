@@ -19,14 +19,17 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
             ws = dist.get_world_size() if (dist.is_available() and dist.is_initialized()) else 1
             if grad is None or ws == 1:
                 return
-            work = dist.all_reduce(grad, op=dist.ReduceOp.AVG, async_op=True)
-            self._pending.append((p, work))
+            # work = dist.all_reduce(grad, op=dist.ReduceOp.AVG, async_op=True) # gloo doesn't have avg!??!?!
+            work = dist.all_reduce(grad, op=dist.ReduceOp.SUM, async_op=True)
         return _hook
     
     def forward(self, *args, **kwargs):
         return self.module(*args, **kwargs)
     
     def finish_gradient_synchronization(self):
+        ws = dist.get_world_size() if (dist.is_available() and dist.is_initialized()) else 1
         for p, work in self._pending:
             work.wait()
+            if ws > 1:
+                p.grad.div_(ws)
         self._pending.clear()
