@@ -45,6 +45,10 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
                     break
         
         return output
+    def _backward_hook(self, grad):
+        """Hook that runs after the backward pass to finish gradient synchronization."""
+        self.finish_gradient_synchronization()
+        return grad
     
     def finish_gradient_synchronization(self):
         ws = dist.get_world_size() if (dist.is_available() and dist.is_initialized()) else 1
