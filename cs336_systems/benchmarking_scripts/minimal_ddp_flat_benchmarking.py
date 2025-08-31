@@ -108,8 +108,8 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         total_time_grad_all_reduce = torch.zeros(1, device=device)
 
         total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        flat_grad_buffer = torch.zeros(total_params, dtype=torch.float32, device=device)
-        print(f"[Rank {rank}] Pre-allocated buffer size: {flat_grad_buffer.numel() * 4 / 1024**3:.2f}GB")
+        # flat_grad_buffer = torch.zeros(total_params, dtype=torch.float32, device=device)
+        # print(f"[Rank {rank}] Pre-allocated buffer size: {flat_grad_buffer.numel() * 4 / 1024**3:.2f}GB")
 
         for iter in range(nb_iters + nb_warmup):
             print("Starting training")
