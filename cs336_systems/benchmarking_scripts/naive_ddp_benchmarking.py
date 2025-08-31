@@ -15,6 +15,10 @@ def setup(rank, world_size):
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = str(29500)
     torch.cuda.set_device(rank)
+    assert torch.cuda.current_device() == rank, (rank, torch.cuda.current_device())
+    if rank == 0:
+        print("Visible:", os.getenv("CUDA_VISIBLE_DEVICES"), "count:", torch.cuda.device_count())
+    print(f"Rank {rank} -> CUDA device {torch.cuda.current_device()} ({torch.cuda.get_device_name(torch.cuda.current_device())})")
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
 def create_model_and_optimizer(model_dict, optimizer_dict, device):
