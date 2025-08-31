@@ -15,7 +15,7 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
                 if p.requires_grad:
                     if not p.is_leaf:
                         raise RuntimeError("Parameter is not a leaf tensor")
-                    p.register_post_accumulate_grad_hook(self._hook())
+                    p.register_post_accumulate_grad_hook(self._hook(p))
 
 
     def _hook(self,param):   
