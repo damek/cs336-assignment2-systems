@@ -65,7 +65,7 @@ def _test_DistributedDataParallelIndividualParameters(rank: int, world_size: int
         ddp_model_param_name,
         ddp_model_parameter,
     ) in zip(non_parallel_model.named_parameters(), ddp_model.named_parameters()):
-        print("Named parameter names in ddp model: ", ddp_model_param_name)
+        # print("Named parameter names in ddp model: ", ddp_model_param_name)
         # This parameter was initialized as [2, 2], so we expect its value to remain the same
         is_no_grad_fixed_param = (
             "no_grad_fixed_param" in ddp_model_param_name or "no_grad_fixed_param" in non_parallel_param_name
