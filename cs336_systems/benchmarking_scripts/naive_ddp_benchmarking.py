@@ -9,6 +9,7 @@ from torch.multiprocessing.spawn import ProcessRaisedException
 import os
 import numpy as np
 import time
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 def setup(rank, world_size):
     os.environ["MASTER_ADDR"] = "localhost"

@@ -4,7 +4,6 @@ import cs336_basics.data as data
 import cs336_basics.optimizer as optimizer_class
 import cs336_basics.nn_utils as nn_utils
 import torch.distributed as dist
-from torch._utils import _flatten_dense_tensors, _unflatten_dense_tensors
 import torch.multiprocessing as mp
 from torch.multiprocessing.spawn import ProcessRaisedException
 import os
