@@ -10,13 +10,18 @@ from torch.multiprocessing.spawn import ProcessRaisedException
 import os
 import numpy as np
 import time
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 def setup(rank, world_size):
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = "29527"
     torch.cuda.set_device(rank)
+    assert torch.cuda.current_device() == rank, (rank, torch.cuda.current_device())
+    if rank == 0:
+        print("Visible:", os.getenv("CUDA_VISIBLE_DEVICES"), "count:", torch.cuda.device_count())
+    print(f"Rank {rank} -> CUDA device {torch.cuda.current_device()} ({torch.cuda.get_device_name(torch.cuda.current_device())})")
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
-    os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+    
 
 def manual_flatten_grads(grads):
     total_size = sum(g.numel() for g in grads)
@@ -108,8 +113,8 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         total_time_grad_all_reduce = torch.zeros(1, device=device)
 
         total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        # flat_grad_buffer = torch.zeros(total_params, dtype=torch.float32, device=device)
-        # print(f"[Rank {rank}] Pre-allocated buffer size: {flat_grad_buffer.numel() * 4 / 1024**3:.2f}GB")
+        flat_grad_buffer = torch.zeros(total_params, dtype=torch.float32, device=device)
+        print(f"[Rank {rank}] Pre-allocated buffer size: {flat_grad_buffer.numel() * 4 / 1024**3:.2f}GB")
 
         for iter in range(nb_iters + nb_warmup):
             print("Starting training")
@@ -135,31 +140,31 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After backward:')}")
 
             start_time_grad_all_reduce = time.perf_counter()
-            # grads = [p.grad for p in model.parameters() if p.grad is not None]
-            # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After collecting grads:')}")
+            grads = [p.grad for p in model.parameters() if p.grad is not None]
+            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After collecting grads:')}")
 
-            # flat_grad = manual_flatten_grads(grads)
-            # offset = 0
-            # for g in grads:
-                # size = g.numel()
-                # flat_grad_buffer[offset:offset + size].copy_(g.view(-1))
-                # offset += size
+            flat_grad = manual_flatten_grads(grads)
+            offset = 0
+            for g in grads:
+                size = g.numel()
+                flat_grad_buffer[offset:offset + size].copy_(g.view(-1))
+                offset += size
 
-            # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After flatten:')}")
-            # print(f"[Rank {rank}, Iter {iter}] Flat grad size: {flat_grad_buffer.numel() * 4 / 1024**3:.2f}GB")
-            for p in model.parameters():
-                if p.grad is not None:
-                    dist.all_reduce(p.grad, op=dist.ReduceOp.AVG)
-            # dist.all_reduce(flat_grad_buffer, op=dist.ReduceOp.AVG)
+            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After flatten:')}")
+            print(f"[Rank {rank}, Iter {iter}] Flat grad size: {flat_grad_buffer.numel() * 4 / 1024**3:.2f}GB")
+            # for p in model.parameters():
+            #     if p.grad is not None:
+            #         dist.all_reduce(p.grad, op=dist.ReduceOp.AVG)
+            dist.all_reduce(flat_grad_buffer, op=dist.ReduceOp.AVG)
             print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After all_reduce:')}")
 
-            # unflat_grads = manual_unflatten_grads(flat_grad, grads)
-            # offset = 0
-            # for g in grads:
-            #     size = g.numel()
-            #     g.view(-1).copy_(flat_grad_buffer[offset:offset + size])
-            #     offset += size
-            # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After unflatten:')}")
+            unflat_grads = manual_unflatten_grads(flat_grad, grads)
+            offset = 0
+            for g in grads:
+                size = g.numel()
+                g.view(-1).copy_(flat_grad_buffer[offset:offset + size])
+                offset += size
+            print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After unflatten:')}")
             # for dst, src in zip(grads, unflat_grads):
             #         dst.copy_(src)
             # print(f"[Rank {rank}, Iter {iter}] {get_memory_info(device, 'After copy:')}")
