@@ -15,7 +15,7 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
                 if p.requires_grad:
                     p.register_post_accumulate_grad_hook(lambda p: self._hook(p))
 
-    def _make_hook(self, p: torch.Tensor): 
+    def _hook(self, p: torch.Tensor): 
         ws = dist.get_world_size() if (dist.is_available() and dist.is_initialized()) else 1
         if p.grad is None or ws == 1:
             return
