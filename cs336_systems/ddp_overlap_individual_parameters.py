@@ -25,7 +25,7 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
             print(f"param.grad is None for {param.name}")
             return
         # work = dist.all_reduce(grad, op=dist.ReduceOp.AVG, async_op=True) # gloo doesn't have avg!??!?!
-        work = dist.all_reduce(param.grad, op=dist.ReduceOp.SUM, async_op=True)
+        work = dist.all_reduce(param.grad, op=dist.ReduceOp.SUM, async_op=False)
         self._pending.append((param, work))
         return None
 
@@ -36,6 +36,7 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
         ws = dist.get_world_size() if (dist.is_available() and dist.is_initialized()) else 1
         for p, work in self._pending:
             work.wait()
+            torch.cuda.synchronize()
             if ws > 1 and p.grad is not None:
                 p.grad.div_(ws)
         self._pending.clear()
