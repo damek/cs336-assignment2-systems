@@ -69,12 +69,12 @@ def _test_DistributedDataParallelIndividualParameters(rank: int, world_size: int
         is_no_grad_fixed_param = (
             "no_grad_fixed_param" in ddp_model_param_name or "no_grad_fixed_param" in non_parallel_param_name
         )
+        print("Distance between non-parallel and ddp model parameters is: ", torch.norm(non_parallel_model_parameter - ddp_model_parameter))
         if rank == 0 or is_no_grad_fixed_param:
-            print("Distance between non-parallel and ddp model parameters is: ", torch.norm(non_parallel_model_parameter - ddp_model_parameter))
             assert torch.allclose(non_parallel_model_parameter, ddp_model_parameter)
         else:
             assert not torch.allclose(non_parallel_model_parameter, ddp_model_parameter)
-
+    
     # Make sure all the ranks have the same model state
     validate_ddp_net_equivalence(ddp_model)
 
