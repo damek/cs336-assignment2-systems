@@ -29,4 +29,3 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
         for p, work in self._pending:
             work.wait()
         self._pending.clear()
-l
