@@ -26,15 +26,16 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
         self._pending.append((param, work))
         return None
 
-    
     def forward(self, *args, **kwargs):
         return self.module(*args, **kwargs)
     
     def finish_gradient_synchronization(self):
+        if not (dist.is_available() and dist.is_initialized()):
+            print("NOPE")
+            return
         ws = dist.get_world_size() if (dist.is_available() and dist.is_initialized()) else 1
         for p, work in self._pending:
             work.wait()
-            torch.cuda.synchronize()
             if ws > 1 and p.grad is not None:
                 p.grad.div_(ws)
         self._pending.clear()
