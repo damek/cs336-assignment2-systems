@@ -8,10 +8,10 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
         self._pending = []
         # dist.broadcast_object_list(module.state_dict(), src=0) # this pickles the entire object and then sends. Apparently you lose some benefits because we must do the pickle on the CPU and then copy back to GPU then send.
         with torch.no_grad():
-            for t in list(module.parameters()) + list(module.buffers()):
+            for t in list(self.module.parameters()) + list(module.buffers()):
                 dist.broadcast(t.data, src=0)
 
-            for p in module.parameters():
+            for p in self.module.parameters():
                 if p.requires_grad:
                     if not p.is_leaf:
                         raise RuntimeError("Parameter is not a leaf tensor")
@@ -25,7 +25,7 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
             print(f"param.grad is None for {param.name}")
             return
         # work = dist.all_reduce(grad, op=dist.ReduceOp.AVG, async_op=True) # gloo doesn't have avg!??!?!
-        work = dist.all_reduce(param.grad, op=dist.ReduceOp.SUM, async_op=False)
+        work = dist.all_reduce(param.grad, op=dist.ReduceOp.SUM, async_op=True)
         self._pending.append((param, work))
         return None
 
@@ -35,8 +35,7 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
     def finish_gradient_synchronization(self):
         ws = dist.get_world_size() if (dist.is_available() and dist.is_initialized()) else 1
         for p, work in self._pending:
-            # work.wait()
-            torch.cuda.synchronize()
+            work.wait()
             if ws > 1 and p.grad is not None:
                 p.grad.div_(ws)
         self._pending.clear()
