@@ -15,17 +15,19 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
                 if p.requires_grad:
                     if not p.is_leaf:
                         raise RuntimeError("Parameter is not a leaf tensor")
-                    p.register_post_accumulate_grad_hook(lambda q: self._hook(q))
+                    p.register_post_accumulate_grad_hook(self._make_hook())
 
-
-    def _hook(self,param):   
-        if not (dist.is_available() and dist.is_initialized()):
-            return
-        # work = dist.all_reduce(grad, op=dist.ReduceOp.AVG, async_op=True) # gloo doesn't have avg!??!?!
-        work = dist.all_reduce(param.grad, op=dist.ReduceOp.SUM, async_op=True)
-        self._pending.append((param, work))
-        return None
-
+    def _make_hook(self): 
+        def _hook(param):   
+            ws = dist.get_world_size() if (dist.is_available() and dist.is_initialized()) else 1
+            if param.grad is None or ws == 1:
+                return
+            # work = dist.all_reduce(grad, op=dist.ReduceOp.AVG, async_op=True) # gloo doesn't have avg!??!?!
+            work = dist.all_reduce(param.grad, op=dist.ReduceOp.SUM, async_op=True)
+            self._pending.append((param, work))
+            return None
+        return _hook
+    
     def forward(self, *args, **kwargs):
         return self.module(*args, **kwargs)
     
