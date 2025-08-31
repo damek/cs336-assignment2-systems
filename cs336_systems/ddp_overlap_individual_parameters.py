@@ -22,6 +22,7 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
         # work = dist.all_reduce(grad, op=dist.ReduceOp.AVG, async_op=True) # gloo doesn't have avg!??!?!
         work = dist.all_reduce(p.grad, op=dist.ReduceOp.SUM, async_op=True)
         self._pending.append((p, work))
+        return p.grad
 
     
     def forward(self, *args, **kwargs):
