@@ -20,7 +20,7 @@ class DDPOverlapBucketed(torch.nn.Module):
         with torch.no_grad():
             for t in list(module.parameters()) + list(module.buffers()):
                 dist.broadcast(t.data, src=0)
-            
+            print("finished broadcasting")
             total_numel = 0
             device = None
             for p in module.parameters():
@@ -30,7 +30,7 @@ class DDPOverlapBucketed(torch.nn.Module):
                     total_numel += p.numel()
                     device = p.device # assuming entire model is one same device.
             self.global_flat = torch.tensor(total_numel, dtype=torch.float32, device=device) 
-
+            print("finished creating global flat")
             for p in reversed(list(module.parameters())):
                 if p.requires_grad:
                     if not p.is_leaf:
@@ -51,13 +51,13 @@ class DDPOverlapBucketed(torch.nn.Module):
                         self.param_to_segment[p] = len(self.segments) - 1
                         total_numel += p.numel()
                     self.segments[-1]["view"] = self.global_flat.narrow(0, current_start, length)
-
+            print("finished building segments")
             for p in module.parameters():
                 if p.requires_grad:
                     if not p.is_leaf:
                         raise RuntimeError("Parameter is not a leaf tensor")
                     p.register_post_accumulate_grad_hook(self._hook)
-
+            
     def _hook(self, param):   
         if not (dist.is_available() and dist.is_initialized()):
             return
