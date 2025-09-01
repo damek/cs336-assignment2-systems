@@ -5,28 +5,29 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
     def __init__(self, module: torch.nn.Module):
         super().__init__()
         self.module = module
-        self._pending = []  # stores (param, work, g64)
+        self._pending = []  # (param, work, g64)
 
-        # on-device broadcast of initial state from rank 0
+        # initial sync, on-device
         with torch.no_grad():
             for t in list(module.parameters()) + list(module.buffers()):
                 dist.broadcast(t.data, src=0)
 
-        # IMPORTANT: register hook that captures the Parameter (not the grad)
+        # KEY CHANGE: use register_hook (final grad), not post_accumulate
         for p in module.parameters():
             if p.requires_grad:
                 if not p.is_leaf:
                     raise RuntimeError("Parameter is not a leaf tensor")
-                p.register_post_accumulate_grad_hook(lambda _, p=p: self._hook(p))
+                p.register_hook(lambda grad, p=p: self._hook(p, grad))
 
-    def _hook(self, p: torch.nn.Parameter):
+    # hook gets the FINAL grad for this param for this backward
+    def _hook(self, p: torch.nn.Parameter, grad: torch.Tensor):
         if not (dist.is_available() and dist.is_initialized()):
             return
-        if p.grad is None:
+        if grad is None:
             return
-        # Reduce in float64 to remove FP32 order/rounding drift.
-        g64 = p.grad.detach().to(torch.float64)
-        work = dist.all_reduce(g64, op=dist.ReduceOp.SUM, async_op=True)  # AVG not portable on gloo
+        # reduce in float64 to kill FP32 order noise
+        g64 = grad.detach().to(torch.float64)
+        work = dist.all_reduce(g64, op=dist.ReduceOp.SUM, async_op=True)
         self._pending.append((p, work, g64))
 
     def forward(self, *args, **kwargs):
@@ -41,7 +42,7 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
             self._pending.clear()
             return
 
-        # Wait for all async reductions, then average once and copy back to p.grad
+        # wait for async reductions, then average and copy back to p.grad
         for _, work, _ in self._pending:
             work.wait()
         for p, _, g64 in self._pending:
