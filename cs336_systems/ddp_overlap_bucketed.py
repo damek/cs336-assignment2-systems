@@ -32,27 +32,29 @@ class DDPOverlapBucketed(torch.nn.Module):
             print("total_numel, device", total_numel, device)
             self.global_flat = torch.tensor(total_numel, dtype=torch.float32, device=device) 
             print("finished creating global flat")
+            # initialize our first segment
+            self.segments.append({"params": [], "start": 0, "length": 0, "ready": 0, "handle": None})
             for p in reversed(list(module.parameters())):
                 print("building segments")
                 if p.requires_grad:
                     if not p.is_leaf:
                         raise RuntimeError("Parameter is not a leaf tensor")
-                    if len(self.segments) == 0:
-                        current_start = 0
+                    
+                    # Case 1: we can just add to our current segment 
+                    if self.segments[-1]["length"] == 0 and p.numel()*4/1024**2 > self.bucket_size_mb:
+                        raise RuntimeError("Parameter is too large to fit in a single bucket")
+                    
+                    if (self.segments[-1]["length"] == 0) or ((self.segments[-1]["length"] + p.numel())*4/1024**2 <= self.bucket_size_mb):
+                        self.segments[-1]["params"].append(p)
+                        self.segments[-1]["length"] += p.numel()
                     else:
-                        current_start = self.segments[-1]["start"] + self.segments[-1]["length"]
-                    # fill up segment until bucket_size_mb is full
-                    params = []
-                    length = 0
-                    ready = 0
-                    handle = None 
-                    while (length + p.numel())*4/1024**2 <= self.bucket_size_mb:
-                        print("adding param to segment")
-                        params.append(p)
-                        length += p.numel()
-                        self.param_to_segment[p] = len(self.segments) 
-                    self.segments.append({"params": params, "start": current_start, "length": length, "ready": ready, "handle": handle})
-                    self.segments[-1]["view"] = self.global_flat.narrow(0, current_start, length)
+                        # Close off the previous segment
+                        self.segments[-1]["view"] = self.global_flat.narrow(0, self.segments[-1]["start"], self.segments[-1]["length"])
+                        # we're going to add a new segment
+                        self.segments.append({"params": [p], "start": self.segments[-1]["start"] + self.segments[-1]["length"], "length": p.numel(), "ready": 0, "handle": None, "view": None})
+
+                    self.param_to_segment[p] = len(self.segments) - 1
+
 
             print("finished building segments")
             for p in module.parameters():
