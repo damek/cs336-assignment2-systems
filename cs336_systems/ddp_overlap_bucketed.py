@@ -91,7 +91,7 @@ class DDPOverlapBucketed(torch.nn.Module):
         ws = torch.as_tensor(ws, dtype=torch.float64)
 
         for segment in self._pending:
-            segment.handle.wait()
+            segment["handle"].wait()
             if ws > 1:
                 segment.view.div_(ws)
             offset = 0
@@ -99,7 +99,7 @@ class DDPOverlapBucketed(torch.nn.Module):
                 size = p.numel()
                 p.grad.view(-1).copy_(segment.view[offset:offset + size])
                 offset += size
-            segment.ready = 0
-            segment.handle = None
+            segment["ready"] = 0
+            segment["handle"] = None
 
         self._pending.clear()
