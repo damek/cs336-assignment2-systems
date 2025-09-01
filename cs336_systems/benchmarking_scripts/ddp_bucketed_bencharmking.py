@@ -147,7 +147,7 @@ if __name__ == "__main__":
                     "d_ff": 6400,
                     "rope_theta": 10000,    
                 }
-                print(f"Training DDP model, local_bs: {local_bs}, seq_len: {seq_len}")
+                print(f"Training DDP model, local_bs: {local_bs}, seq_len: {seq_len}, bucket_size_mb: {bucket_size_mb}")
                 try: 
                     mp.spawn(fn=train, args=(world_size, nb_iters, model_dict, optimizer_dict, local_bs,warmup, bucket_size_mb), nprocs=world_size, join=True)
                 # If out of memory error, print out of memory, skipping
