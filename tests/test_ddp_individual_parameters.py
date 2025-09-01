@@ -136,7 +136,8 @@ def _test_DistributedDataParallelIndividualParameters(rank: int, world_size: int
 
         # Run student-written code that needs to execute after the backward pass,
         # but before the optimizer step (e.g., to wait for all DDP ranks to sync gradients)
-        ddp_individual_parameters_on_after_backward(ddp_model, ddp_optimizer)
+        # ddp_individual_parameters_on_after_backward(ddp_model, ddp_optimizer)
+        ddp_model.finish_gradient_synchronization()
 
         ddp_optimizer.step()
 
