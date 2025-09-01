@@ -41,7 +41,7 @@ class DDPOverlapBucketed(torch.nn.Module):
                         raise RuntimeError("Parameter is not a leaf tensor")
                     
                     # Case 1: we can just add to our current segment 
-                    if self.segments[-1]["length"] == 0 and p.numel()*4/1024**2 > self.bucket_size_mb:
+                    if p.numel()*4/1024**2 > self.bucket_size_mb:
                         raise RuntimeError("Parameter is too large to fit in a single bucket")
                     
                     if (self.segments[-1]["length"] == 0) or ((self.segments[-1]["length"] + p.numel())*4/1024**2 <= self.bucket_size_mb):
