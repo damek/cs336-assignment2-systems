@@ -15,7 +15,7 @@ uv run cs336_systems/benchmarking_scripts/ddp_overlap_individual_parameters_benc
 > The measured time per training iteration when overlapping the backward pass
 > with communication of individual parameter gradients, with 1-2 sentences comparing the results.
 
-Conclusion: Reduces time for the all-reduce step to ~20%. 
+Conclusion: Reduces time for the all-reduce step to ~20-30%. 
 
 Compare to [minimal_ddp_flat_benchmarking.md](minimal_ddp_flat_benchmarking.md) (~40%) and [naive_ddp_benchmarking.md](naive_ddp_benchmarking.md) (~50%).
 
@@ -23,32 +23,32 @@ Compare to [minimal_ddp_flat_benchmarking.md](minimal_ddp_flat_benchmarking.md) 
 
 ```bash
 Training DDP model, local_bs: 2, seq_len: 128
-total time train: tensor([0.7228], device='cuda:0')
-total time grad all reduce: tensor([0.2290], device='cuda:0')
-ratio grad all reduce to train time: tensor([0.3168], device='cuda:0')
+total time train: tensor([0.7245], device='cuda:0')
+total time grad all reduce: tensor([0.2318], device='cuda:0')
+ratio grad all reduce to train time: tensor([0.3199], device='cuda:0')
 Training DDP model, local_bs: 2, seq_len: 256
-total time train: tensor([0.7293], device='cuda:0')
-total time grad all reduce: tensor([0.1922], device='cuda:0')
-ratio grad all reduce to train time: tensor([0.2635], device='cuda:0')
+total time train: tensor([0.7328], device='cuda:0')
+total time grad all reduce: tensor([0.1831], device='cuda:0')
+ratio grad all reduce to train time: tensor([0.2499], device='cuda:0')
 Training DDP model, local_bs: 2, seq_len: 512
-total time train: tensor([0.7686], device='cuda:0')
-total time grad all reduce: tensor([0.1336], device='cuda:0')
-ratio grad all reduce to train time: tensor([0.1738], device='cuda:0')
+total time train: tensor([0.7731], device='cuda:0')
+total time grad all reduce: tensor([0.1371], device='cuda:0')
+ratio grad all reduce to train time: tensor([0.1773], device='cuda:0')
 ```
 
-### Batch size 4
+## Batch size 4
 
 ```bash
 Training DDP model, local_bs: 4, seq_len: 128
-total time train: tensor([0.7294], device='cuda:0')
-total time grad all reduce: tensor([0.1942], device='cuda:0')
-ratio grad all reduce to train time: tensor([0.2662], device='cuda:0')
+total time train: tensor([0.7297], device='cuda:0')
+total time grad all reduce: tensor([0.2001], device='cuda:0')
+ratio grad all reduce to train time: tensor([0.2742], device='cuda:0')
 Training DDP model, local_bs: 4, seq_len: 256
-total time train: tensor([0.7599], device='cuda:0')
-total time grad all reduce: tensor([0.1426], device='cuda:0')
-ratio grad all reduce to train time: tensor([0.1877], device='cuda:0')
+total time train: tensor([0.7574], device='cuda:0')
+total time grad all reduce: tensor([0.1393], device='cuda:0')
+ratio grad all reduce to train time: tensor([0.1840], device='cuda:0')
 Training DDP model, local_bs: 4, seq_len: 512
-total time train: tensor([0.9500], device='cuda:0')
-total time grad all reduce: tensor([0.1278], device='cuda:0')
-ratio grad all reduce to train time: tensor([0.1345], device='cuda:0')
+total time train: tensor([0.9468], device='cuda:0')
+total time grad all reduce: tensor([0.1286], device='cuda:0')
+ratio grad all reduce to train time: tensor([0.1359], device='cuda:0')
 ```

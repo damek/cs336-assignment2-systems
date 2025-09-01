@@ -127,14 +127,14 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--naive_ddp", action="store_true")
-    parser.add_argument("--save_location", type=str, default=None)
+    parser.add_argument("--save_folder", type=str, default="../outputs/nsys/ddp_overlap_individual_parameters_benchmarking_nvtx")
     return parser.parse_args()
 
 if __name__ == "__main__":
     world_size = 2
     nb_iters = 10
-    local_bss = [2, 4]
-    seq_lengths = [128, 256, 512]
+    local_bs = 2
+    seq_len = 128
     warmup=10
     # XL model
     optimizer_dict = {
@@ -145,25 +145,25 @@ if __name__ == "__main__":
     args = get_args()
     overlap = not args.naive_ddp
 
-    for local_bs in local_bss:
-        for seq_len in seq_lengths:
-            model_dict = {
-                "vocab_size": 10000,
-                "context_length": seq_len,
-                "d_model": 1600,
-                "num_layers": 48,
-                "num_heads": 25,
-                "d_ff": 6400,
-                "rope_theta": 10000,    
-            }
-            print(f"Training DDP model, local_bs: {local_bs}, seq_len: {seq_len}")
-            try: 
-                mp.spawn(fn=train, args=(world_size, nb_iters, model_dict, optimizer_dict, local_bs,warmup, overlap), nprocs=world_size, join=True)
-            # If out of memory error, print out of memory, skipping
-            except ProcessRaisedException as e:           
-                if "out of memory" in str(e).lower():    
-                    print("out of memory (skipping this config)")
-                    continue
-                raise  
+
+    model_dict = {
+        "vocab_size": 10000,
+        "context_length": seq_len,
+        "d_model": 1600,
+        "num_layers": 48,
+        "num_heads": 25,
+        "d_ff": 6400,
+        "rope_theta": 10000,    
+    }
+    save_folder = os.path.join(args.save_folder, f"overlap_{overlap}")
+    os.makedirs(save_folder, exist_ok=True)
+    print(f"Training DDP model, local_bs: {local_bs}, seq_len: {seq_len}, overlap: {overlap}")
+    try: 
+        mp.spawn(fn=train, args=(world_size, nb_iters, model_dict, optimizer_dict, local_bs,warmup, overlap), nprocs=world_size, join=True)
+    # If out of memory error, print out of memory, skipping
+    except ProcessRaisedException as e:           
+        if "out of memory" in str(e).lower():    
+            print("out of memory (skipping this config)")
+        raise  
 
                 

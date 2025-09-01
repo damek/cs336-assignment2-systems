@@ -135,7 +135,6 @@ if __name__ == "__main__":
         "lr": 1e-3,
         "weight_decay": 0.01,
     }
-    print("m")
     for local_bs in local_bss:
         for seq_len in seq_lengths:
             model_dict = {
