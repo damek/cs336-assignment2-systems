@@ -11,6 +11,8 @@ import os
 import numpy as np
 import time
 import argparse
+from cs336_basics.utils import maybe_range
+
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 def setup(rank, world_size):
@@ -96,12 +98,17 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             loss = nn_utils.cross_entropy(logits, y_local)
             loss.backward()
             start_time_grad_all_reduce = time.perf_counter()
-            if overlap:
-                model.finish_gradient_synchronization()
-            else: 
-                for p in model.parameters():
-                    if p.requires_grad:
-                        dist.all_reduce(p.grad, op=dist.ReduceOp.AVG)
+            if iter >= nb_warmup:
+                nvtx = True
+            else:
+                nvtx = False
+            with maybe_range("grad_all_reduce", nvtx):
+                if overlap:
+                    model.finish_gradient_synchronization()
+                else: 
+                    for p in model.parameters():
+                        if p.requires_grad:
+                            dist.all_reduce(p.grad, op=dist.ReduceOp.AVG)
             torch.cuda.synchronize()
             end_time_grad_all_reduce = time.perf_counter()
             if iter >= nb_warmup:
@@ -127,7 +134,6 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--naive_ddp", action="store_true")
-    parser.add_argument("--save_folder", type=str, default="../outputs/nsys/ddp_overlap_individual_parameters_benchmarking_nvtx")
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -155,8 +161,6 @@ if __name__ == "__main__":
         "d_ff": 6400,
         "rope_theta": 10000,    
     }
-    save_folder = os.path.join(args.save_folder, f"overlap_{overlap}")
-    os.makedirs(save_folder, exist_ok=True)
     print(f"Training DDP model, local_bs: {local_bs}, seq_len: {seq_len}, overlap: {overlap}")
     try: 
         mp.spawn(fn=train, args=(world_size, nb_iters, model_dict, optimizer_dict, local_bs,warmup, overlap), nprocs=world_size, join=True)
