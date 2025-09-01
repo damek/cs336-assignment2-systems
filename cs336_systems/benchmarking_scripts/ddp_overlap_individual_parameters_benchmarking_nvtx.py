@@ -10,6 +10,7 @@ from torch.multiprocessing.spawn import ProcessRaisedException
 import os
 import numpy as np
 import time
+import argparse
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 def setup(rank, world_size):
@@ -38,16 +39,16 @@ def create_model_and_optimizer(model_dict, optimizer_dict, device):
         num_heads=num_heads,
         d_ff=d_ff,
         rope_theta=rope_theta,
+        nvtx = True,
     )
     model.to(device)
     # Create optimizer
     lr = optimizer_dict.get("lr", 1e-3)
     weight_decay = optimizer_dict.get("weight_decay", 0.01)
     optimizer = optimizer_class.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
-    model = DDPOverlapIndividualParameters(model)
     return model, optimizer
 
-def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_warmup=10):
+def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_warmup=10, overlap=True):
     setup(rank, world_size)
     device=f"cuda:{rank}"
     try: 
@@ -55,7 +56,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         torch.cuda.manual_seed_all(0)
         np.random.seed(0)
         model, optimizer = create_model_and_optimizer(model_dict, optimizer_dict, device)
-
+        model = DDPOverlapIndividualParameters(model) if overlap else model
         # dist.broadcast_object_list(model.state_dict(), src=0)
         for p in model.parameters():
             dist.broadcast(p.data, src=0)
@@ -95,11 +96,11 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             loss = nn_utils.cross_entropy(logits, y_local)
             loss.backward()
             start_time_grad_all_reduce = time.perf_counter()
-            
             # for p in model.parameters():
             #     if p.grad is not None:
             #         dist.all_reduce(p.grad, op=dist.ReduceOp.AVG)
-            model.finish_gradient_synchronization()
+            if overlap:
+                model.finish_gradient_synchronization()
             torch.cuda.synchronize()
             end_time_grad_all_reduce = time.perf_counter()
             if iter >= nb_warmup:
@@ -122,7 +123,11 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         if dist.is_initialized():
             dist.destroy_process_group()
 
-
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--naive_ddp", action="store_true")
+    parser.add_argument("--save_location", type=str, default=None)
+    return parser.parse_args()
 
 if __name__ == "__main__":
     world_size = 2
@@ -135,6 +140,9 @@ if __name__ == "__main__":
         "lr": 1e-3,
         "weight_decay": 0.01,
     }
+    
+    args = get_args()
+    overlap = not args.naive_ddp
 
     for local_bs in local_bss:
         for seq_len in seq_lengths:
@@ -149,7 +157,7 @@ if __name__ == "__main__":
             }
             print(f"Training DDP model, local_bs: {local_bs}, seq_len: {seq_len}")
             try: 
-                mp.spawn(fn=train, args=(world_size, nb_iters, model_dict, optimizer_dict, local_bs,warmup), nprocs=world_size, join=True)
+                mp.spawn(fn=train, args=(world_size, nb_iters, model_dict, optimizer_dict, local_bs,warmup, overlap), nprocs=world_size, join=True)
             # If out of memory error, print out of memory, skipping
             except ProcessRaisedException as e:           
                 if "out of memory" in str(e).lower():    
