@@ -27,30 +27,34 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
     def forward(self, *args, **kwargs):
         return self.module(*args, **kwargs)
 
-    def finish_gradient_synchronization(self):
-        if not (dist.is_available() and dist.is_initialized()):
-            return
-        ws = dist.get_world_size()
-        if ws == 1:
-            return
+def finish_gradient_synchronization(self):
+    if not (dist.is_available() and dist.is_initialized()):
+        return
+    ws = dist.get_world_size()
+    if ws == 1:
+        return
 
-        handles = []
-        # Deterministic, identical sequence across ranks.
-        # NOTE: Module.parameters() yields each Parameter once (tied weights handled).
-        for p in self.module.parameters():
-            if p.grad is None:
-                # keep collective counts identical even if some rank has no grad
-                tmp = torch.zeros_like(p.data)
-                h = dist.all_reduce(tmp, op=dist.ReduceOp.SUM, async_op=True)
-                handles.append((None, h))
-            else:
-                # reduce the actual buffer the optimizer will read
-                h = dist.all_reduce(p.grad, op=dist.ReduceOp.SUM, async_op=True)
-                handles.append((p, h))
+    handles = []
+    tmp_bufs = []  # keep 64-bit buffers alive until after wait
 
-        # Wait for comms, then average exactly once per parameter
-        for p, h in handles:
-            h.wait()
-        for p, _ in handles:
-            if p is not None and p.grad is not None:
-                p.grad.div_(ws)
+    # Deterministic param order; one collective per param
+    for p in self.module.parameters():
+        if not p.requires_grad:
+            continue
+        if p.grad is None:
+            # participate to keep collective counts identical across ranks
+            g64 = torch.zeros_like(p.data, dtype=torch.float64, device=p.data.device)
+            handles.append(dist.all_reduce(g64, op=dist.ReduceOp.SUM, async_op=True))
+            tmp_bufs.append((None, g64))
+        else:
+            # do the reduction in float64, then copy back
+            g64 = p.grad.detach().to(torch.float64)
+            handles.append(dist.all_reduce(g64, op=dist.ReduceOp.SUM, async_op=True))
+            tmp_bufs.append((p, g64))
+
+    # wait, then average in high precision and copy back to p.grad
+    for h in handles:
+        h.wait()
+    for p, g64 in tmp_bufs:
+        if p is not None:
+            p.grad.copy_((g64 / ws).to(p.grad.dtype))
