@@ -47,6 +47,7 @@ class DDPOverlapBucketed(torch.nn.Module):
                     ready = 0
                     handle = None 
                     while (length + p.numel())*4/1024**2 <= self.bucket_size_mb:
+                        print("adding param to segment")
                         params.append(p)
                         length += p.numel()
                         self.param_to_segment[p] = len(self.segments) 
