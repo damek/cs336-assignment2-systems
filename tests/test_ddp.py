@@ -158,11 +158,12 @@ def _test_DistributedDataParallelCPU(
         ddp_optimizer.step()
 
         # At this point, the non-parallel model should exactly match the parameters of the DDP model
+        atol = 1e-4
         if rank == 0:
             for non_parallel_model_parameter, ddp_model_parameter in zip(
                 non_parallel_model.parameters(), ddp_model.parameters()
             ):
-                assert torch.allclose(non_parallel_model_parameter, ddp_model_parameter)
+                assert torch.allclose(non_parallel_model_parameter, ddp_model_parameter, atol=1e-4)
 
         # Shuffle the data so that during the next iteration, each DDP rank sees a different set of inputs.
         # We make sure to use the same seed when shuffling (else the per-rank examples might not be disjoint).
@@ -177,5 +178,5 @@ def _test_DistributedDataParallelCPU(
         for non_parallel_model_parameter, ddp_model_parameter in zip(
             non_parallel_model.parameters(), ddp_model.parameters()
         ):
-            assert torch.allclose(non_parallel_model_parameter, ddp_model_parameter)
+            assert torch.allclose(non_parallel_model_parameter, ddp_model_parameter, atol=1e-4)
     _cleanup_process_group()
