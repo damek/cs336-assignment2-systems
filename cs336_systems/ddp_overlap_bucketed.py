@@ -93,11 +93,11 @@ class DDPOverlapBucketed(torch.nn.Module):
         for segment in self._pending:
             segment["handle"].wait()
             if ws > 1:
-                segment.view.div_(ws)
+                segment["view"].div_(ws)
             offset = 0
-            for p in segment.params:
+            for p in segment["params"]:
                 size = p.numel()
-                p.grad.view(-1).copy_(segment.view[offset:offset + size])
+                p.grad.view(-1).copy_(segment["view"][offset:offset + size])
                 offset += size
             segment["ready"] = 0
             segment["handle"] = None
