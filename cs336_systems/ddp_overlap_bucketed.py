@@ -30,7 +30,7 @@ class DDPOverlapBucketed(torch.nn.Module):
                     total_numel += p.numel()
                     device = p.device # assuming entire model is one same device.
             print("total_numel, device", total_numel, device)
-            self.global_flat = torch.tensor(total_numel, dtype=torch.float32, device=device) 
+            self.global_flat = torch.zeros(total_numel, dtype=torch.float32, device=device) 
             print("finished creating global flat")
             # initialize our first segment
             self.segments.append({"params": [], "start": 0, "length": 0, "ready": 0, "handle": None})
