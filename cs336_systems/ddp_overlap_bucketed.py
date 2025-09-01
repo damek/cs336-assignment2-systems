@@ -48,13 +48,12 @@ class DDPOverlapBucketed(torch.nn.Module):
                         self.segments[-1]["params"].append(p)
                         self.segments[-1]["length"] += p.numel()
                     else:
-                        # Close off the previous segment
-                        self.segments[-1]["view"] = self.global_flat.narrow(0, self.segments[-1]["start"], self.segments[-1]["length"])
-                        # we're going to add a new segment
-                        self.segments.append({"params": [p], "start": self.segments[-1]["start"] + self.segments[-1]["length"], "length": p.numel(), "ready": 0, "handle": None, "view": None})
+                         self.segments.append({"params": [p], "start": self.segments[-1]["start"] + self.segments[-1]["length"], "length": p.numel(), "ready": 0, "handle": None, "view": None})
 
                     self.param_to_segment[p] = len(self.segments) - 1
-            self.segments[-1]["view"] = self.global_flat.narrow(0, self.segments[-1]["start"], self.segments[-1]["length"])
+
+            for segment in self.segments:
+                segment["view"] = self.global_flat.narrow(0, segment["start"], segment["length"])
 
 
             print("finished building segments")
