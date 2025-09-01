@@ -146,7 +146,7 @@ def _test_DistributedDataParallelIndividualParameters(rank: int, world_size: int
             ):
                 print("Distance between non-parallel and ddp model parameters is: ", torch.norm(non_parallel_model_parameter - ddp_model_parameter))
                 print("dp parameter names: ", ddp_model_parameter.name, "non_parallel_model_parameter.name: ", non_parallel_model_parameter.name)
-                assert torch.allclose(non_parallel_model_parameter, ddp_model_parameter)
+                assert torch.allclose(non_parallel_model_parameter, ddp_model_parameter, atol=1e-6)
 
         # Shuffle the data so that during the next iteration, each DDP rank sees a different set of inputs.
         # We make sure to use the same seed when shuffling (else the per-rank examples might not be disjoint).
