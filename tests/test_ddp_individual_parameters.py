@@ -141,13 +141,12 @@ def _test_DistributedDataParallelIndividualParameters(rank: int, world_size: int
         ddp_optimizer.step()
 
         # At this point, the non-parallel model should exactly match the parameters of the DDP model
-        if rank == 0:
-            for non_parallel_model_parameter, ddp_model_parameter in zip(
-                non_parallel_model.parameters(), ddp_model.parameters()
-            ):
-                with torch.no_grad():
+        with torch.no_grad():
+            if rank == 0:
+                for non_parallel_model_parameter, ddp_model_parameter in zip(
+                    non_parallel_model.parameters(), ddp_model.parameters()
+                ):
                     print("Distance between non-parallel and ddp model parameters is: ", torch.norm(non_parallel_model_parameter - ddp_model_parameter))
-                    print("dp parameter names: ", ddp_model_parameter.name, "non_parallel_model_parameter.name: ", non_parallel_model_parameter.name)
                     assert torch.allclose(non_parallel_model_parameter, ddp_model_parameter, atol=1e-4)
 
         # Shuffle the data so that during the next iteration, each DDP rank sees a different set of inputs.
