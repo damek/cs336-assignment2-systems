@@ -80,9 +80,9 @@ class DDPOverlapBucketed(torch.nn.Module):
                 offset += size
             # send the bucket
             segment["handle"] = dist.all_reduce(segment["view"], op=dist.ReduceOp.SUM, async_op=True)
-        self.segments[segment_idx] = segment
-        print("segment handle", segment["handle"])
-        self._pending.append(segment)
+            self.segments[segment_idx] = segment
+            print("segment handle", segment["handle"])
+            self._pending.append(segment)
         return None
 
     def forward(self, *args, **kwargs):
