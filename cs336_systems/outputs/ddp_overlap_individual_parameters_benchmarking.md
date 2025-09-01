@@ -15,6 +15,10 @@ uv run cs336_systems/benchmarking_scripts/ddp_overlap_individual_parameters_benc
 > The measured time per training iteration when overlapping the backward pass
 > with communication of individual parameter gradients, with 1-2 sentences comparing the results.
 
+Conclusion: Reduces time for the all-reduce step to ~20%. 
+
+Compare to [minimal_ddp_flat_benchmarking.md](minimal_ddp_flat_benchmarking.md) (~40%) and [naive_ddp_benchmarking.md](naive_ddp_benchmarking.md) (~50%).
+
 ### Batch size 2
 
 ```bash
