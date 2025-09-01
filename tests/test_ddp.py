@@ -163,6 +163,7 @@ def _test_DistributedDataParallelCPU(
             for non_parallel_model_parameter, ddp_model_parameter in zip(
                 non_parallel_model.parameters(), ddp_model.parameters()
             ):
+                print(f"Distance between non-parallel and ddp model parameters is: {torch.norm(non_parallel_model_parameter - ddp_model_parameter)}")
                 assert torch.allclose(non_parallel_model_parameter, ddp_model_parameter, atol=1e-4)
 
         # Shuffle the data so that during the next iteration, each DDP rank sees a different set of inputs.
