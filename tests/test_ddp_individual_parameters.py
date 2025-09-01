@@ -145,7 +145,7 @@ def _test_DistributedDataParallelIndividualParameters(rank: int, world_size: int
                 non_parallel_model.parameters(), ddp_model.parameters()
             ):
                 with torch.no_grad():
-                    print("Distance between non-parallel and ddp model parameters is: ", torch.norm(non_parallel_model_parameter - ddp_model_parameter))/torch.max(torch.norm(non_parallel_model_parameter), torch.norm(ddp_model_parameter))
+                    print("Distance between non-parallel and ddp model parameters is: ", torch.norm(non_parallel_model_parameter - ddp_model_parameter))
                     print("dp parameter names: ", ddp_model_parameter.name, "non_parallel_model_parameter.name: ", non_parallel_model_parameter.name)
                     assert torch.allclose(non_parallel_model_parameter, ddp_model_parameter, atol=1e-5)
 
