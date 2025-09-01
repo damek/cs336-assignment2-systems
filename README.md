@@ -52,6 +52,9 @@ https://x.com/damekdavis/status/1949507725626347825
   - Overlapping communication with gradient computation
     - Run code [ddp_overlap_individual_parameters_benchmarking.py](cs336_systems/benchmarking_scripts/ddp_overlap_individual_parameters_benchmarking.py)
     - Results: [ddp_overlap_individual_parameters_benchmarking.md](cs336_systems/outputs/ddp_overlap_individual_parameters_benchmarking.md)
+  - Bucketed DDP Benchmarking on GPT2 XL model
+    - Run code [ddp_bucketed_benchmarking.py](cs336_systems/benchmarking_scripts/ddp_bucketed_benchmarking.py)
+    - Results: [ddp_bucketed_benchmarking.md](cs336_systems/outputs/ddp_bucketed_benchmarking.md)
 
 # Getting started with my code
 

@@ -10,9 +10,16 @@
 > changes in the experimental setup would you expect to yield results that are aligned with your
 > expectations?
 
+How to run the script:
+```bash
+uv run cs336_systems/benchmarking_scripts/ddp_bucketed_benchmarking.py
+```
+
 ### Deliverable
 
 > Measured time per training iteration for various bucket sizes. 3-4 sentence commentary about the results, your expectations, and potential reasons for any mismatch.
+
+Conclusion: There is a sweetspot for bucket size: ~100MB. If bucket is too small, we're communicating too often. If we set bucket size 1000MB, we're not overlapping communication and computation enough.
 
 #### Batch size 2
 ![Batch size 2](figures/bucketed_batch_size_2.png)
