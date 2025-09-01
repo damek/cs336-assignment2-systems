@@ -1,26 +1,19 @@
 import torch
 import torch.distributed as dist
 
-class Bucket:
-    def __init__(self, param_list: list[torch.Tensor]):
-        self.param_list = param_list
-        self.grad_list = [p.grad for p in param_list]
-        self.work_list = [None for _ in param_list]
-
 class DDPOverlapBucketed(torch.nn.Module):
     def __init__(self, module: torch.nn.Module, bucket_size_mb: float):
         super().__init__()
         self.module = module
         self._pending = []
         self.bucket_size_mb = bucket_size_mb
-        self.segments = [] # list of segments
-        self.param_to_segment = {} # {param: segment_idx}
+        self.segments = [] 
+        self.param_to_segment = {} 
         self.global_flat = None
 
         with torch.no_grad():
             for t in list(module.parameters()) + list(module.buffers()):
                 dist.broadcast(t.data, src=0)
-            print("finished broadcasting")
             total_numel = 0
             device = None
             for p in module.parameters():
@@ -29,20 +22,13 @@ class DDPOverlapBucketed(torch.nn.Module):
                         raise RuntimeError("Parameter is not a leaf tensor")
                     total_numel += p.numel()
                     device = p.device # assuming entire model is one same device.
-            print("total_numel, device", total_numel, device)
             self.global_flat = torch.zeros(total_numel, dtype=torch.float32, device=device) 
-            print("finished creating global flat")
-            # initialize our first segment
+            
             self.segments.append({"params": [], "start": 0, "length": 0, "ready": 0, "handle": None})
             for p in reversed(list(module.parameters())):
-                print("building segments")
                 if p.requires_grad:
                     if not p.is_leaf:
                         raise RuntimeError("Parameter is not a leaf tensor")
-                    
-                    # I thought this would be a good idea, but we fail the test if we do it.
-                    # if p.numel()*4/1024**2 > self.bucket_size_mb:
-                    #     raise RuntimeError("Parameter is too large to fit in a single bucket")
                     
                     if (self.segments[-1]["length"] == 0) or ((self.segments[-1]["length"] + p.numel())*4/1024**2 <= self.bucket_size_mb):
                         self.segments[-1]["params"].append(p)
@@ -56,7 +42,6 @@ class DDPOverlapBucketed(torch.nn.Module):
                 segment["view"] = self.global_flat.narrow(0, segment["start"], segment["length"])
 
 
-            print("finished building segments")
             for p in module.parameters():
                 if p.requires_grad:
                     if not p.is_leaf:
