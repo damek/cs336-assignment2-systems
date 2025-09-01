@@ -126,3 +126,26 @@ total time train: tensor([0.9692], device='cuda:0')
 total time grad all reduce: tensor([0.1591], device='cuda:0')
 ratio grad all reduce to train time: tensor([0.1641], device='cuda:0')
 ```
+
+## Question (b)
+
+> Assume that the time it takes to compute the gradients for a bucket is identical to the time it takes to communicate the gradient buckets. Write an equation that models the communication overhead of DDP (i.e., the amount of additional time spent after the backward pass) as a function
+> of the total size (bytes) of the model parameters ($s$), the all-reduce algorithm bandwidth ($w$),
+> computed as the size of each rank’s data divided by the time it takes to finish the all-reduce), the
+> overhead (seconds) associated with each communication call ($o$), and the number of buckets ($n_b$).
+> From this equation, write an equation for the optimal bucket size that minimizes DDP overhead.
+
+> Deliverable: Equation that models DDP overhead, and an equation for the optimal bucket size.
+
+Let's assume that all buckets are of the same size. Then the communciation for the last bucket is the only one that matters. That communication is the initialized as soon as the last gradient bucket is computed. 
+
+So how much does it take to compute a gradient bucket? It's the same amount of time it takes to communicate a bucket, ignoring overhead. We can compute that. Indeed, each bucket is of size $b_s = s/n_b$. To communicate a bucket it takes, $b_s/w$ seconds (ignoring upstart). Thus, the total extra overhead due to DDP is 
+$$
+b_s/w + o = \frac{s}{nb w} + o
+$$
+seconds.
+
+Equation for the optimal bucket size:
+
+```
+```
