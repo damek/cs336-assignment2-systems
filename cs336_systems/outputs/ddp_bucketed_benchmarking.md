@@ -141,7 +141,7 @@ Let's assume that all buckets are of the same size. Then the communciation for t
 
 So how much does it take to compute a gradient bucket? It's the same amount of time it takes to communicate a bucket, ignoring overhead. We can compute that. Indeed, each bucket is of size $b_s = s/n_b$. To communicate a bucket it takes, $b_s/w$ seconds (ignoring upstart). Thus, the total extra overhead due to DDP is 
 $$
-b_s/w + o = \frac{s}{nb w} + o
+b_s/w + o = \frac{s}{n_b w} + o
 $$
 seconds.
 
