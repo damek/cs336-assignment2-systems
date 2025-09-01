@@ -72,8 +72,8 @@ In the figures below look at the pt_autograd_0 row and the nccl rows. You can se
 
 
 #### Naive DDP
-![Naive DDP](../outputs/nsys/ddp_overlap_individual_parameters_benchmarking_nvtx/naive_ddp.png)
+![Naive DDP](nsys/ddp_overlap_individual_parameters_benchmarking_nvtx/naive_ddp.png)
 
 
 #### Overlap DDP
-![Overlap DDP](../outputs/nsys/ddp_overlap_individual_parameters_benchmarking_nvtx/overlap.png)
+![Overlap DDP](nsys/ddp_overlap_individual_parameters_benchmarking_nvtx/overlap.png)
