@@ -5,56 +5,38 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
     def __init__(self, module: torch.nn.Module):
         super().__init__()
         self.module = module
+        self._pending = []
+        # dist.broadcast_object_list(module.state_dict(), src=0) # this pickles the entire object and then sends. Apparently you lose some benefits because we must do the pickle on the CPU and then copy back to GPU then send.
+        with torch.no_grad():
+            for t in list(module.parameters()) + list(module.buffers()):
+                dist.broadcast(t.data, src=0)
 
-        # --- Robust init sync: broadcast params then buffers, always in same order ---
-        if dist.is_available() and dist.is_initialized():
-            with torch.no_grad():
-                # parameters first
-                for p in self.module.parameters():
-                    dist.broadcast(p.data, src=0)
-                # then buffers (e.g., running stats)
-                for b in self.module.buffers():
-                    dist.broadcast(b.data, src=0)
-            # make sure all ranks are past init sync before comparisons
-            dist.barrier()
+            for p in module.parameters():
+                if p.requires_grad:
+                    if not p.is_leaf:
+                        raise RuntimeError("Parameter is not a leaf tensor")
+                    p.register_post_accumulate_grad_hook(self._hook)
 
-        # Keep your hooks if you want, but don’t launch comms from them
-        # (reductions happen once in finish_gradient_synchronization)
-        for p in self.module.parameters():
-            if p.requires_grad:
-                p.register_post_accumulate_grad_hook(lambda _: None)
+
+    def _hook(self, param):   
+        if not (dist.is_available() and dist.is_initialized()):
+            return
+        if param.grad is None:
+            print(f"param.grad is None for {param.name}")
+            return
+        # work = dist.all_reduce(grad, op=dist.ReduceOp.AVG, async_op=True) # gloo doesn't have avg!??!?!
+        work = dist.all_reduce(param.grad, op=dist.ReduceOp.SUM, async_op=True)
+        self._pending.append((param, work))
+        return None
 
     def forward(self, *args, **kwargs):
         return self.module(*args, **kwargs)
-
-def finish_gradient_synchronization(self):
-    if not (dist.is_available() and dist.is_initialized()):
-        return
-    ws = dist.get_world_size()
-    if ws == 1:
-        return
-
-    handles = []
-    tmp_bufs = []  # keep 64-bit buffers alive until after wait
-
-    # Deterministic param order; one collective per param
-    for p in self.module.parameters():
-        if not p.requires_grad:
-            continue
-        if p.grad is None:
-            # participate to keep collective counts identical across ranks
-            g64 = torch.zeros_like(p.data, dtype=torch.float64, device=p.data.device)
-            handles.append(dist.all_reduce(g64, op=dist.ReduceOp.SUM, async_op=True))
-            tmp_bufs.append((None, g64))
-        else:
-            # do the reduction in float64, then copy back
-            g64 = p.grad.detach().to(torch.float64)
-            handles.append(dist.all_reduce(g64, op=dist.ReduceOp.SUM, async_op=True))
-            tmp_bufs.append((p, g64))
-
-    # wait, then average in high precision and copy back to p.grad
-    for h in handles:
-        h.wait()
-    for p, g64 in tmp_bufs:
-        if p is not None:
-            p.grad.copy_((g64 / ws).to(p.grad.dtype))
+    
+    def finish_gradient_synchronization(self):
+        ws = dist.get_world_size() if (dist.is_available() and dist.is_initialized()) else 1
+        ws = torch.as_tensor(ws, dtype=torch.float64)
+        for p, work in self._pending:
+            work.wait()
+            if ws > 1 and p.grad is not None:
+                p.grad.div_(ws)
+        self._pending.clear()
