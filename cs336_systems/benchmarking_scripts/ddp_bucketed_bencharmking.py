@@ -128,6 +128,7 @@ if __name__ == "__main__":
     nb_iters = 10
     local_bss = [2, 4]
     seq_lengths = [128, 256, 512]
+    bucket_size_mbss = [1, 10, 100, 1000]
     warmup=10
     # XL model
     optimizer_dict = {
@@ -136,23 +137,24 @@ if __name__ == "__main__":
     }
     for local_bs in local_bss:
         for seq_len in seq_lengths:
-            model_dict = {
-                "vocab_size": 10000,
-                "context_length": seq_len,
-                "d_model": 1600,
-                "num_layers": 48,
-                "num_heads": 25,
-                "d_ff": 6400,
-                "rope_theta": 10000,    
-            }
-            print(f"Training DDP model, local_bs: {local_bs}, seq_len: {seq_len}")
-            try: 
-                mp.spawn(fn=train, args=(world_size, nb_iters, model_dict, optimizer_dict, local_bs,warmup), nprocs=world_size, join=True)
-            # If out of memory error, print out of memory, skipping
-            except ProcessRaisedException as e:           
-                if "out of memory" in str(e).lower():    
-                    print("out of memory (skipping this config)")
-                    continue
-                raise  
+            for bucket_size_mb in bucket_size_mbss:
+                model_dict = {
+                    "vocab_size": 10000,
+                    "context_length": seq_len,
+                    "d_model": 1600,
+                    "num_layers": 48,
+                    "num_heads": 25,
+                    "d_ff": 6400,
+                    "rope_theta": 10000,    
+                }
+                print(f"Training DDP model, local_bs: {local_bs}, seq_len: {seq_len}")
+                try: 
+                    mp.spawn(fn=train, args=(world_size, nb_iters, model_dict, optimizer_dict, local_bs,warmup, bucket_size_mb), nprocs=world_size, join=True)
+                # If out of memory error, print out of memory, skipping
+                except ProcessRaisedException as e:           
+                    if "out of memory" in str(e).lower():    
+                        print("out of memory (skipping this config)")
+                        continue
+                    raise  
 
-                
+                    
