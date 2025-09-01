@@ -81,9 +81,9 @@ def _test_DistributedDataParallelIndividualParameters(rank: int, world_size: int
     # Load the dataset from disk, so we can ensure that every rank has the same
     # overall pool of data.
     # Shape: (20, 10)
-    all_x = torch.load(FIXTURES_PATH / "ddp_test_data.pt")
+    all_x = torch.load(FIXTURES_PATH / "ddp_test_data.pt").double()
     # Shape: (20, 5)
-    all_y = torch.load(FIXTURES_PATH / "ddp_test_labels.pt")
+    all_y = torch.load(FIXTURES_PATH / "ddp_test_labels.pt").double()
 
     # Each rank will see only 10 examples (out of the total dataset size of 20)
     assert all_x.size(0) % world_size == 0
