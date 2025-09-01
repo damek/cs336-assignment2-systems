@@ -29,9 +29,11 @@ class DDPOverlapBucketed(torch.nn.Module):
                         raise RuntimeError("Parameter is not a leaf tensor")
                     total_numel += p.numel()
                     device = p.device # assuming entire model is one same device.
+            print("total_numel, device", total_numel, device)
             self.global_flat = torch.tensor(total_numel, dtype=torch.float32, device=device) 
             print("finished creating global flat")
             for p in reversed(list(module.parameters())):
+                print("building segments")
                 if p.requires_grad:
                     if not p.is_leaf:
                         raise RuntimeError("Parameter is not a leaf tensor")
@@ -51,6 +53,7 @@ class DDPOverlapBucketed(torch.nn.Module):
                         self.param_to_segment[p] = len(self.segments) - 1
                         total_numel += p.numel()
                     self.segments[-1]["view"] = self.global_flat.narrow(0, current_start, length)
+
             print("finished building segments")
             for p in module.parameters():
                 if p.requires_grad:
