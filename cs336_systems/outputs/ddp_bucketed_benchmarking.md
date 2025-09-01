@@ -139,7 +139,7 @@ ratio grad all reduce to train time: tensor([0.1641], device='cuda:0')
 
 Let's assume that all buckets are of the same size. Then the communciation for the last bucket is the only one that matters. That communication is the initialized as soon as the last gradient bucket is computed. 
 
-So how much does it take to compute a gradient bucket? It's the same amount of time it takes to communicate a bucket, ignoring overhead. We can compute that. Indeed, each bucket is of size $b_s = s/n_b$. To communicate a bucket it takes, $b_s/w$ seconds (ignoring upstart). Thus, the total extra overhead due to DDP is 
+So how much does it take to compute a gradient bucket? It's the same amount of time it takes to communicate a bucket, ignoring overhead. We can compute that. Indeed, each bucket is of size $b_s = s/n_b$. To communicate a bucket it takes, $b_s/w$ seconds (ignoring upstart). Thus, the total overhead due to DDP is 
 $$
 b_s/w + o = \frac{s}{n_b w} + o
 $$
