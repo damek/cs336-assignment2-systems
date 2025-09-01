@@ -1,4 +1,4 @@
-Problem (ddp_overlap_individual_parameters_benchmarking):
+# Problem (ddp_overlap_individual_parameters_benchmarking):
 
 ## Question (a)
 > (a) Benchmark the performance of your DDP implementation when overlapping backward pass computation with communication of individual parameter gradients. Compare its performance with
