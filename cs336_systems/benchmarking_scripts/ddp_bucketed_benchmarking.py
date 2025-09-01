@@ -126,8 +126,8 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
 if __name__ == "__main__":
     world_size = 2
     nb_iters = 10
-    local_bss = [2]
-    seq_lengths = [512]
+    local_bss = [2, 4]
+    seq_lengths = [128, 256, 512]
     bucket_size_mbss = [1, 10, 100, 1000]
     warmup=10
     # XL model
