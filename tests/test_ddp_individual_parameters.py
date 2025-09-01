@@ -97,6 +97,7 @@ def _test_DistributedDataParallelIndividualParameters(rank: int, world_size: int
     non_parallel_optimizer = optim.SGD(non_parallel_model.parameters(), lr=0.1)
 
     for i in range(5):
+        print(f"Iteration {i}")
         ddp_optimizer.zero_grad()
         non_parallel_optimizer.zero_grad()
 
