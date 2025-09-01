@@ -22,12 +22,14 @@ class DDPOverlapBucketed(torch.nn.Module):
                 dist.broadcast(t.data, src=0)
             
             total_numel = 0
+            device = None
             for p in module.parameters():
                 if p.requires_grad:
                     if not p.is_leaf:
                         raise RuntimeError("Parameter is not a leaf tensor")
                     total_numel += p.numel()
-            self.global_flat = torch.tensor(total_numel, dtype=torch.float32, device=module.device) 
+                    device = p.device
+            self.global_flat = torch.tensor(total_numel, dtype=torch.float32, device=device) 
 
             for p in reversed(list(module.parameters())):
                 if p.requires_grad:
