@@ -5,54 +5,38 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
     def __init__(self, module: torch.nn.Module):
         super().__init__()
         self.module = module
-        # map: Parameter -> list of (work_handle, reduced_buf64)
-        self._pending = {}
-
+        self._pending = []
+        # dist.broadcast_object_list(module.state_dict(), src=0) # this pickles the entire object and then sends. Apparently you lose some benefits because we must do the pickle on the CPU and then copy back to GPU then send.
         with torch.no_grad():
             for t in list(module.parameters()) + list(module.buffers()):
                 dist.broadcast(t.data, src=0)
 
-        for p in module.parameters():
-            if p.requires_grad:
-                if not p.is_leaf:
-                    raise RuntimeError("Parameter is not a leaf tensor")
-                # capture both param and the hook's grad
-                p.register_post_accumulate_grad_hook(lambda grad, p=p: self._hook(p, grad))
+            for p in module.parameters():
+                if p.requires_grad:
+                    if not p.is_leaf:
+                        raise RuntimeError("Parameter is not a leaf tensor")
+                    p.register_post_accumulate_grad_hook(self._hook)
 
-    def _hook(self, p: torch.nn.Parameter, grad: torch.Tensor):
+
+    def _hook(self, param):   
         if not (dist.is_available() and dist.is_initialized()):
             return
-        if grad is None:
+        if param.grad is None:
+            print(f"param.grad is None for {param.name}")
             return
-        # snapshot this contribution into a separate buffer (avoid racing on p.grad)
-        g64 = grad.detach().to(torch.float64).contiguous()
-        work = dist.all_reduce(g64, op=dist.ReduceOp.SUM, async_op=True)
-        self._pending.setdefault(p, []).append((work, g64))
+        # work = dist.all_reduce(grad, op=dist.ReduceOp.AVG, async_op=True) # gloo doesn't have avg!??!?!
+        work = dist.all_reduce(param.grad, op=dist.ReduceOp.SUM, async_op=True)
+        self._pending.append((param, work))
+        return None
 
     def forward(self, *args, **kwargs):
         return self.module(*args, **kwargs)
-
+    
     def finish_gradient_synchronization(self):
-        if not (dist.is_available() and dist.is_initialized()):
-            self._pending.clear()
-            return
-        ws = dist.get_world_size()
-        if ws == 1:
-            self._pending.clear()
-            return
-
-        # wait for all async reductions to complete
-        for lst in self._pending.values():
-            for work, _ in lst:
-                work.wait()
-
-        # sum all reduced contributions per parameter, average, and write back once
-        for p, lst in self._pending.items():
-            if p.grad is None:
-                continue  # nothing to write
-            total = None
-            for _, g64 in lst:
-                total = g64 if total is None else total.add_(g64)
-            p.grad.copy_((total / ws).to(p.grad.dtype))
-
+        ws = dist.get_world_size() if (dist.is_available() and dist.is_initialized()) else 1
+        ws = torch.as_tensor(ws, dtype=torch.float64)
+        for p, work in self._pending:
+            work.wait()
+            if ws > 1 and p.grad is not None:
+                p.grad.div_(ws)
         self._pending.clear()
