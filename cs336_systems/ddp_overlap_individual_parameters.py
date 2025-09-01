@@ -10,6 +10,7 @@ class DDPOverlapIndividualParameters(torch.nn.Module):
         # initial sync, on-device
         with torch.no_grad():
             for t in list(module.parameters()) + list(module.buffers()):
+                print(t.data.dtype)
                 dist.broadcast(t.data, src=0)
 
         # KEY CHANGE: use register_hook (final grad), not post_accumulate
