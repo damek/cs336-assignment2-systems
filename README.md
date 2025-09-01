@@ -49,6 +49,9 @@ https://x.com/damekdavis/status/1949507725626347825
   - Minimal DDP Flat Benchmarking on GPT2 XL model
     - Run code [minimal_ddp_flat_benchmarking.py](cs336_systems/benchmarking_scripts/minimal_ddp_flat_benchmarking.py)
     - Results: [minimal_ddp_flat_benchmarking.md](cs336_systems/outputs/minimal_ddp_flat_benchmarking.md)
+  - Overlapping communication with gradient computation
+    - Run code [ddp_overlap_individual_parameters_benchmarking.py](cs336_systems/benchmarking_scripts/ddp_overlap_individual_parameters_benchmarking.py)
+    - Results: [ddp_overlap_individual_parameters_benchmarking.md](cs336_systems/outputs/ddp_overlap_individual_parameters_benchmarking.md)
 
 # Getting started with my code
 
