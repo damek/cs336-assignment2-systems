@@ -34,7 +34,7 @@ X_{l+1} = W_{out, l}  W_{in, l} X_l
 $$
 So to compute backward, you'll need both $X_l$ and $W_{in, l}X_l$
 
-So let's assume that $X_0$ is just a length $d_{model} x b$ matrix, where $b$ is the batch size. Then we'll need to save: 
+So let's assume that $X_0$ is just a length $d_{model} x b$ matrix, where $b$ is the batch size (number of tokens). Then we'll need to save: 
 $$
 b*n_l(n_l*d_{ff} + d_{model}) \text{bytes} = b*0.01631399244 GBs
 $$
@@ -46,9 +46,8 @@ $$
 3276 GB/ 80GB ~ 41 H100s.
 $$
 
-
 ## Question (b)
-> Now assume your master weights, optimizer state, gradients and half of your activations (in practice every second layer) are sharded across NFSDP devices. Write an expression for how much memory this would take per device. What value does NFSDP need to be for the total memory cost to be less than 1 v5p TPU (95GB per device)? Deliverable: Your calculationsand a one-sentence response.
+> Now assume your master weights, optimizer state, gradients and half of your activations (in practice every second layer) are sharded across $N_{FSDP}$ devices. Write an expression for how much memory this would take per device. What value does $N_{FSDP}$ need to be for the total memory cost to be less than 1 v5p TPU (95GB per device)? Deliverable: Your calculationsand a one-sentence response.
 
 ## Question (c)
 >  Consider only the forward pass. Use the communication bandwidth of Wici = 2 · 9 · 1010 and FLOPS/s of C = 4.6 · 1014 for TPU v5p as given in the TPU Scaling Book. Following the notation of the Scaling Book, use MX = 2, MY = 1 (a 3D mesh), with X = 16 being your FSDP dimension, and Y = 4 being your TP dimension. At what per-device batch size is this model compute bound? What is the overall batch size in this setting? Deliverable: Your calculations and a one-sentence response.
