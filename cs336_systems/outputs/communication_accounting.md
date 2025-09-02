@@ -110,7 +110,7 @@ $$
 On the other hand, the cost of an all gather / all reduce is $(\text{total bytes})/W_{ici}$. Thus, we have 
 
 $$
-T_{comm} = \frac{2\cdot(B/X)D/M_Y + 2\cdot2\cdot(D/M_X)(F/Y) + 2\cdot(B/X)D/M_Y}{XW_{ici}}
+T_{comm} = \frac{2\cdot(B/X)D/M_Y + 2\cdot2\cdot(D/M_X)(F/Y) + 2\cdot(B/X)D/M_Y}{W_{ici}}
 $$
 
 where the leading 2 comes from the fact that the weights are in FP16.
@@ -120,14 +120,14 @@ where the leading 2 comes from the fact that the weights are in FP16.
 I.e., when is $T_{math} > T_{comm}$. This occurs when 
 
 $$
-\frac{4BDF}{CXY} > \frac{2\cdot(B/X)D/M_Y + 2\cdot2\cdot(D/M_X)(F/Y) + 2\cdot(B/X)D/M_Y}{XW_{ici}}
+\frac{4BDF}{CXY} > \frac{2\cdot(B/X)D/M_Y + 2\cdot2\cdot(D/M_X)(F/Y) + 2\cdot(B/X)D/M_Y}{W_{ici}}
 $$
 
 The only free parameter here is $B$. So let's solve for $B$. 
 We need 
 
 $$
-B\left(\frac{2*2*BDF}{CXY} - \frac{4D/XM_Y}{W_{ici}}\right) > \frac{2\cdot2\cdot(D/M_X)(F/Y)}{XW_{ici}}
+B\left(\frac{4DF}{CXY} - \frac{4D/XM_Y}{W_{ici}}\right) > \frac{2\cdot2\cdot(D/M_X)(F/Y)}{XW_{ici}}
 $$
 
 
