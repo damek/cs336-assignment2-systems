@@ -49,14 +49,24 @@ $$
 ## Question (b)
 > Now assume your master weights, optimizer state, gradients and half of your activations (in practice every second layer) are sharded across $N_{FSDP}$ devices. Write an expression for how much memory this would take per device. What value does $N_{FSDP}$ need to be for the total memory cost to be less than 1 v5p TPU (95GB per device)? Deliverable: Your calculations and a one-sentence response.
 
-Per device, we need
+So each device is going to hold half of the activations, which is 
 $$
-(3276 + b*0.01631399244 GB)/N_{FSDP} GBs
+(b/2)*0.01631399244 GB
 $$
-I.e., we need to have 
+But then they're going to split the remaining activation across the $N_{FSDP}$ devices, so in total, the activation memory per device is 
 $$
-N_{FSDP} \geq (3276 + b*0.01631399244)/95 TPUs = 34.5 + 0.0001717262362*b TPUs
-$$ 
+(b/2 + b/2N_{FSPD})*0.01631399244 GB.
+$$
+Therefore, since the parameters, grads, and optimizer states are fully sharded, we have 
+$$
+(3276/N_{FSDP} + (b/2 + b/2N_{FSPD})*0.01631399244) GBs
+$$
+per device. Setting this expression less than $95$ and solving for $N_{FSDP}$, we have
+$$
+N_{FSDP} \geq \frac{3276 + 0.01631399244 (b/2)}{95 - 0.01631399244(b/2)}
+$$
+
+
 
 ## Question (c)
 >  Consider only the forward pass. Use the communication bandwidth of Wici = 2 · 9 · 1010 and FLOPS/s of C = 4.6 · 1014 for TPU v5p as given in the TPU Scaling Book. Following the notation of the Scaling Book, use MX = 2, MY = 1 (a 3D mesh), with X = 16 being your FSDP dimension, and Y = 4 being your TP dimension. At what per-device batch size is this model compute bound? What is the overall batch size in this setting? Deliverable: Your calculations and a one-sentence response.
