@@ -130,9 +130,30 @@ $$
 B\left(\frac{F}{CXY} - \frac{1}{XM_YW_{ici}}\right) > \frac{F}{W_{ici}YM_X}
 $$
 
+Multiplying both sides by $CXYW\_{ici}M\_Y$, we have 
+
+$$
+B\left(FM_YW_{ici} - CY\right) > \frac{FCXM_Y}{M_X}
+$$
+
+Therefore, we need 
+$$
+B \geq \frac{FCXM_Y}{M_X\left(FM_YW_{ici} - CY\right)}
+$$
+
+Plugging in the values of $F = 53248, D = 16384$, $M_X = 2, M_Y = 1, X = 16, Y = 4, C = 4.6 \cdot 10^{14}$, and $W_{ici} = 2 \cdot 9 \cdot 10^{10}$, we require that
+
+$$
+B/X \geq 1581 \qquad \text{ and } B_{\min} \geq 25302.
+$$
 
 ## Question (d)
 > In practice, we want the overall batch size to be as small as possible, and we also always use our compute effectively (in other words we want to never be communication bound). What other tricks can we employ to reduce the batch size of our model but retain high throughput? Deliverable: A one-paragraph response. Back up your claims with references and/or equations.
+
+
+
+
+
 
 [^0]: So the notation step 6 is really nice. You add a ${U_Y}$ along any direction that is waiting to be reduced. For example, you can think of step 6 as part of a multiplication of larger matrices waiting to be all reduced, so the final matrix is simply:
 $$
