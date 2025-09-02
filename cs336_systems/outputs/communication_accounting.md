@@ -96,7 +96,7 @@ What this means is we shard the data across $X$ GPUs. We also shard the weight m
 1. Independently for each batch of data, 
 2. All gather $\text{In}[B_X, D_Y]$ along the $Y$ dimension to get $\text{In}[B_X, D]$.
 3. All gather $W_{in}[D_X, F_Y]$ along the $X$ dimension to get $W_{in}[D, F_Y]$ (prefetchable).
-4. Multiply out $\text{Tmp}_1[B_X, F_Y] = \text{In}[B_X, D]\cdot W_{in}[D, F_Y]$.
+4. Multiply out $\\text{Tmp}\_1[B\_X, F\_Y] = \\text{In}[B_X, D]\\cdot W\_{in}[D, F\_Y]$.
 5. All gather $W_{out}[F_Y, D_X]$ along $X$ to get $W_{out}[F_Y, D]$ (prefetchable).
 6. Multiply out $\text{Out}_2[B_X, D]{U_Y} = \text{Tmp}_1[B_X, F_Y] \cdot W_{out}[F_Y, D]$ (NOT REDUCED YET). 
 7. Reduce scatter $\text{Out}_2[B_X, D]{U_Y}$ along the $Y$ to get $\text{Out}[B_X, D_Y]$.
