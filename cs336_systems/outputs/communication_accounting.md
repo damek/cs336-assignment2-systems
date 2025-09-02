@@ -101,7 +101,10 @@ What this means is we shard the data across $X$ GPUs. We also shard the weight m
 6. Multiply out $\text{Out}[B\_X, D]{U\_Y} = \text{Tmp}\_1[B\_X, F\_Y] \cdot W\_{out}[F\_Y, D]$ (NOT REDUCED YET).[^0]
 7. Reduce scatter $\text{Out}[B\_X, D]{U\_Y}$ along the $Y$ to get $\text{Out}[B\_X, D\_Y]$.
 
-
+We can calculate the total computation time as two matrix multiplies.
+$$
+T_{compute} = \frac{2*2*BDF}{CXY}
+$$
 
 
 
