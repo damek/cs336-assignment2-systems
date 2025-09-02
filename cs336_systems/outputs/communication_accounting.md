@@ -137,6 +137,7 @@ B\left(FM_YW_{ici} - CY\right) > \frac{FCXM_Y}{M_X}
 $$
 
 Therefore, we need 
+
 $$
 B \geq \frac{FCXM_Y}{M_X\left(FM_YW_{ici} - CY\right)}
 $$
