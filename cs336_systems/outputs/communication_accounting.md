@@ -98,7 +98,7 @@ What this means is we shard the data across $X$ GPUs. We also shard the weight m
 3. All gather $W_{in}[D_X, F_Y]$ along the $X$ dimension to get $W_{in}[D, F_Y]$ (prefetchable).
 4. Multiply out $\\text{Tmp}\_1[B\_X, F\_Y] = \\text{In}[B_X, D]\\cdot W\_{in}[D, F\_Y]$.
 5. All gather $W_{out}[F_Y, D_X]$ along $X$ to get $W_{out}[F_Y, D]$ (prefetchable).
-6. Multiply out $\text{Out}\_2[B\_X, D]{U\_Y} = \text{Tmp}_1[B\_X, F\_Y] \cdot W_{out}[F\_Y, D]$ (NOT REDUCED YET). 
+6. Multiply out $\text{Out}\_2[B\_X, D]{U\_Y} = \text{Tmp}\_1[B\_X, F\_Y] \cdot W\_{out}[F\_Y, D]$ (NOT REDUCED YET). 
 7. Reduce scatter $\text{Out}\_2[B\_X, D]{U\_Y}$ along the $Y$ to get $\text{Out}[B\_X, D\_Y]$.
 
 (So the notation step 6 is really nice. You add a ${U_Y}$ along any direction that is waiting to be reduced. For example, you can think of step 6 as part of a multiplication of larger matrices waiting to be all reduced, so the final matrix is simply:
