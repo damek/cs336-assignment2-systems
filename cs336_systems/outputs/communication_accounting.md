@@ -96,18 +96,20 @@ What this means is we shard the data across $X$ GPUs. We also shard the weight m
 1. Independently for each batch of data, 
 2. All gather $\text{In}[B_X, D_Y]$ along the $Y$ dimension to get $\text{In}[B_X, D]$.
 3. All gather $W_{in}[D_X, F_Y]$ along the $X$ dimension to get $W_{in}[D, F_Y]$ (prefetchable).
-4. Multiply out $\\text{Tmp}\_1[B\_X, F\_Y] = \\text{In}[B_X, D]\\cdot W\_{in}[D, F\_Y]$.
+4. Multiply out $\\text{Tmp}[B\_X, F\_Y] = \\text{In}[B_X, D]\\cdot W\_{in}[D, F\_Y]$.
 5. All gather $W_{out}[F_Y, D_X]$ along $X$ to get $W_{out}[F_Y, D]$ (prefetchable).
-6. Multiply out $\text{Out}\_2[B\_X, D]{U\_Y} = \text{Tmp}\_1[B\_X, F\_Y] \cdot W\_{out}[F\_Y, D]$ (NOT REDUCED YET). 
-7. Reduce scatter $\text{Out}\_2[B\_X, D]{U\_Y}$ along the $Y$ to get $\text{Out}[B\_X, D\_Y]$.
+6. Multiply out $\text{Out}[B\_X, D]{U\_Y} = \text{Tmp}\_1[B\_X, F\_Y] \cdot W\_{out}[F\_Y, D]$ (NOT REDUCED YET).[^0]
+7. Reduce scatter $\text{Out}[B\_X, D]{U\_Y}$ along the $Y$ to get $\text{Out}[B\_X, D\_Y]$.
 
 (So the notation step 6 is really nice. You add a ${U_Y}$ along any direction that is waiting to be reduced. For example, you can think of step 6 as part of a multiplication of larger matrices waiting to be all reduced, so the final matrix is simply:
 $$
-\sum_{y \in Y} \text{Tmp}_1[B_X, F_Y] \cdot W_{out}[F_Y, D],
+\sum_{y \in Y} \text{Tmp}[B_X, F_Y] \cdot W_{out}[F_Y, D],
 $$
-which we then reduce scater over the $Y$ dimension.)
+which we then reduce scater over the $Y$ dimension. BTW if you want to think about )
 
 
 
 ## Question (d)
 > In practice, we want the overall batch size to be as small as possible, and we also always use our compute effectively (in other words we want to never be communication bound). What other tricks can we employ to reduce the batch size of our model but retain high throughput? Deliverable: A one-paragraph response. Back up your claims with references and/or equations.
+
+[0]: Here is a footnote
