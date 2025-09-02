@@ -84,5 +84,30 @@ $$
 ## Question (c)
 >  Consider only the forward pass. Use the communication bandwidth of $W_{ici} = 2 \cdot 9 \cdot 10^{10}$ and FLOPS/s of $C = 4.6 \cdot 10^{14}$ for TPU v5p as given in the TPU Scaling Book. Following the notation of the Scaling Book, use $M_X = 2$, $M_Y = 1$ (a 3D mesh), with $X = 16$ being your FSDP dimension, and $Y = 4$ being your TP dimension. At what per-device batch size is this model compute bound? What is the overall batch size in this setting? Deliverable: Your calculations and a one-sentence response.
 
+Let's do a bit of accounting on a single layer with tensor parallelism and FSDP. I kind of like the notation from the TPU book, so we'll stick with that. 
+
+If you combine FSDP with TP, the update equation looks like 
+
+$$
+\text{In}[B_X, D_Y] \cdot W_{in}[D_X, F_Y] \cdot W_{out}[F_Y, D_X] \rightarrow \text{Out}[B_X, D_Y]
+$$
+
+What this means is we shard the data across $X$ GPUs. We also shard the weight matrices across $XY$ GPUs. Then to perform the forward step, we 
+1. Independently for each batch of data, 
+2. All gather $\text{In}[B_X, D_Y]$ along the $Y$ dimension to get $\text{In}[B_X, D]$.
+3. All gather $W_{in}[D_X, F_Y]$ along the $X$ dimension to get $W_{in}[D, F_Y]$ (prefetchable).
+4. Multiply out $\text{Tmp}_1[B_X, F_Y] = \text{In}[B_X, D]\cdot W_{in}[D, F_Y]$.
+5. All gather $W_{out}[F_Y, D_X]$ along $X$ to get $W_{out}[F_Y, D]$ (prefetchable).
+6. Multiply out $\text{Out}_2[B_X, D]{U_Y} = \text{Tmp}_1[B_X, F_Y] \cdot W_{out}[F_Y, D]$ (NOT REDUCED YET). 
+7. Reduce scatter $\text{Out}_2[B_X, D]{U_Y}$ along the $Y$ to get $\text{Out}[B_X, D_Y]$.
+
+(So the notation step 6 is really nice. You add a ${U_Y}$ along any direction that is waiting to be reduced. For example, you can think of step 6 as part of a multiplication of larger matrices waiting to be all reduced, so the final matrix is simply:
+$$
+\sum_{y \in Y} \text{Tmp}_1[B_X, F_Y] \cdot W_{out}[F_Y, D],
+$$
+which we then reduce scater over the $Y$ dimension.)
+
+
+
 ## Question (d)
 > In practice, we want the overall batch size to be as small as possible, and we also always use our compute effectively (in other words we want to never be communication bound). What other tricks can we employ to reduce the batch size of our model but retain high throughput? Deliverable: A one-paragraph response. Back up your claims with references and/or equations.
