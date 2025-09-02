@@ -154,5 +154,5 @@ $$
 However, there is a limit to the minimal bucket size: it must be larger than the maximally sized parameter in the model. So the optimal batch size is 
 
 $$
-b_s = \max\{\sqrt{sow}, \text{maximal param size in model}\}
+b_s = \max\\{\sqrt{sow}, \text{maximal param size in model} \\}
 $$
