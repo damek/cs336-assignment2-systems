@@ -15,7 +15,7 @@ They are stored in FP32.
 - Thus, master weights take 
 
 $$
-126*2*d_{model} \cdot d_{ff}\text{bytes} = 4*126*2*53248*16384/1024^3 GB = 819 GB
+126\cdot 2 \cdot d_{model} \cdot d_{ff} \text{ bytes} = 4*126*2*53248*16384/1024^3 GB = 819 GB
 $$
 
 ### Accumulated gradient
