@@ -98,7 +98,7 @@ What this means is we shard the data across $X$ GPUs. We also shard the weight m
 3. All gather $W_{in}[D_X, F_Y]$ along the $X$ dimension to get $W_{in}[D, F_Y]$ (prefetchable).
 4. Multiply out $\\text{Tmp}[B\_X, F\_Y] = \\text{In}[B_X, D]\\cdot W\_{in}[D, F\_Y]$.
 5. All gather $W_{out}[F_Y, D_X]$ along $X$ to get $W_{out}[F_Y, D]$ (prefetchable).
-6. Multiply out $\text{Out}[B\_X, D]{U\_Y} = \text{Tmp}\_1[B\_X, F\_Y] \cdot W\_{out}[F\_Y, D]$ (NOT REDUCED YET).[^nice_notation]
+6. Multiply out $\text{Out}[B\_X, D]{U\_Y} = \text{Tmp}\_1[B\_X, F\_Y] \cdot W\_{out}[F\_Y, D]$ [(NOT REDUCED YET)](#nice-notation).
 7. Reduce scatter $\text{Out}[B\_X, D]{U\_Y}$ along the $Y$ to get $\text{Out}[B\_X, D\_Y]$.
 
 We can calculate the total computation time as two matrix multiplies.
@@ -183,11 +183,15 @@ I like this answer. But you can also do a grid search over integer $Y$ to find t
 
 ### Nice notation
 So the notation step 6 is really nice. You add a ${U_Y}$ along any direction that is waiting to be reduced. For example, you can think of step 6 as part of a multiplication of larger matrices waiting to be all reduced, so the final matrix is simply:
+
 $$
 \sum_{y \in Y} \text{Tmp}[B_X, F_Y] \cdot W_{out}[F_Y, D],
 $$
+
 which we then reduce scater over the $Y$ dimension. BTW if you want to think about TP, it's just this: split the input matrix into two columns and the output matrix into two grows. Then notice that 
+
 $$
 \text{In} [A_1, A_2] \begin{bmatrix} B_1 \\ B_2\end{bmatrix} = \text{In}A_1 B_1 + \text{In}A_2 B_2.
 $$
+
 You can easily see how to parallelize this by first multiplying $\text{In}A_i$ separately and then multiplying by the $B_1$, then reduce scattering.
