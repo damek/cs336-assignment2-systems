@@ -156,3 +156,9 @@ However, there is a limit to the minimal bucket size: it must be larger than the
 $$
 b_s = \max\\{\sqrt{sow}, \text{maximal param size in model} \\}
 $$
+
+Just to finish up, note that the optimal bandwidth assuming $b_s$ is larger than the maximal parameter size is then 
+
+$$
+2\sqrt{so/w}
+$$
