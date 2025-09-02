@@ -151,8 +151,32 @@ $$
 ## Question (d)
 > In practice, we want the overall batch size to be as small as possible, and we also always use our compute effectively (in other words we want to never be communication bound). What other tricks can we employ to reduce the batch size of our model but retain high throughput? Deliverable: A one-paragraph response. Back up your claims with references and/or equations.
 
+We're going to mess with the grid and the allocation of GPUs between X and Y. The book does this also, but I thought about it before reading, lol. I do it a different way I guess. So how do we do it? 
 
+Recall we have $N := 64 = XY$ and $M_XM_Y=2$, so we can replace $X$ by $N/Y$ to get 
 
+$$
+B \geq \frac{CX}{M_X\left(W_{ici} - (CY/FM_Y)\right)} = \frac{CN}{YM_X\left(W_{ici} - (CY/FM_Y)\right)}
+$$
+So we just want to maximize the denominator which is: 
+
+$$
+g(Y) = YM_X\left(W_{ici} - (CY/FM_Y)\right)
+$$
+
+Notice that the max occurs at $g'(Y) = 0$, meaning $Y = FM_Y W_{ici}/2C$. Plugging this in gives
+ 
+$$
+\frac{FM_YM_X W_{ici}}{4C} = \frac{F W_{ici}^2}{2C}
+$$
+
+Now, we need $64 \geq Y = FM_Y W_{ici}/2C = 53248* (2 \cdot 9 \cdot 10^{10}/2*(4.6 \cdot 10^{14})) M_Y \sim 10.4180869565 *M_Y$, so this is an OK $Y$, since $M_Y \leq 2$. Ok let's plug this in to get the final batch size formula: 
+
+$$
+B \geq \frac{CN}{\frac{F W_{ici}^2}{2C}} = \frac{2C^2N}{F W_{ici}^2} \approx 15699.
+$$
+
+I like this answer. But you can also do a grid search over integer $Y$ to find the optimal such that $Y$ that's an integer. In this case, the setting $Y = X = 8$ and the min batch size is $\geq 16593$
 
 
 
