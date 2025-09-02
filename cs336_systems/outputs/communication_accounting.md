@@ -112,4 +112,4 @@ which we then reduce scater over the $Y$ dimension. BTW if you want to think abo
 ## Question (d)
 > In practice, we want the overall batch size to be as small as possible, and we also always use our compute effectively (in other words we want to never be communication bound). What other tricks can we employ to reduce the batch size of our model but retain high throughput? Deliverable: A one-paragraph response. Back up your claims with references and/or equations.
 
-[0]: Here is a footnote
+[^0]: Here is a footnote
