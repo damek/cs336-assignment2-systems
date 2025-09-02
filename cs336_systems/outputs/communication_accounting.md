@@ -42,7 +42,7 @@ So to compute backward, you'll need both $X_l$ and $W_{in, l}X_l$
 So let's assume that $X_0$ is just a length $d_{model} x b$ matrix, where $b$ is the batch size (number of tokens). Then we'll need to save: 
 
 $$
-b*n_l(n_l*d_{ff} + d_{model})/2 \text{bytes} = b*0.01631399244 GBs
+2*b*n_l(d_{ff} + d_{model}) \text{bytes} = b*0.01631399244 GBs
 $$
 
 ### How many H100s 
@@ -103,8 +103,13 @@ What this means is we shard the data across $X$ GPUs. We also shard the weight m
 
 We can calculate the total computation time as two matrix multiplies.
 $$
-T_{compute} = \frac{2*2*BDF}{CXY}
+T_{math} = \frac{2*2*BDF}{CXY}
 $$
+On the other hand, the cost of an all gather / all reduce is $(\text{total bytes})/W_{ici}$. Thus, we have 
+$$
+T_{comm} = \frac{2\cdot(B/X)D/M_Y + 2\cdot2\cdot(D/M_X)(F/Y) + 2\cdot(B/X)D/M_Y}{XW_{ici}}
+$$
+where the leading 2 comes from the fact that the weights are in FP16.
 
 
 
