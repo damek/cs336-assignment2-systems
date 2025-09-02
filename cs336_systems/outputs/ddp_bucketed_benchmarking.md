@@ -137,15 +137,17 @@ ratio grad all reduce to train time: tensor([0.1641], device='cuda:0')
 
 > Deliverable: Equation that models DDP overhead, and an equation for the optimal bucket size.
 
-Let's assume that all buckets are of the same size. Then the communciation for the last bucket is the only one that matters. That communication is the initialized as soon as the last gradient bucket is computed. 
+Let's assume that all buckets are of the same size. The assumption of the problem is that the time it takes to compute a gradient bucked is identical to the time it takes to communicate it, minus overhead. When we add in overhead, everything is delayed because communication calls do not necessarily happen in parallel (note the problem substantially simplifies if we assume they do; the problem also gets more complex when we assume that they can happen in parallel, up to a certain payload).
 
-So how much does it take to compute a gradient bucket? It's the same amount of time it takes to communicate a bucket, ignoring overhead. We can compute that. Indeed, each bucket is of size $b_s = s/n_b$. To communicate a bucket it takes, $b_s/w$ seconds (ignoring upstart). Thus, the total overhead due to DDP is 
+So think about what happens. Let $b_s$ denote bucket size. After the first backward bucket pass, which takes time $b_s/w = s/(n_bw)$, our first round of communication is initiated. It then takes time $o + b_s/w$. Meanwhile, the computation of the second backward bucket pass is initiated. It finishes in time $b_s/w$. So after the second bucket pass, the first communication is still going for at least $o$ seconds. Only after that, we can start the second communication. Thus, we see that if we continue this process, we will have to wait at least $n_b o$ seconds after the last backward pass before we can start the final communication, which takes time $s/(n_bw)$. So the total overlap is time is 
 $$
-b_s/w + o = \frac{s}{n_b w} + o
+n_b o + s/(n_bw) = (s/b_s)o + b_s/w
 $$
-seconds.
-
-Equation for the optimal bucket size:
-
-```
-```
+Optimizing in bucket size gives 
+$$
+b_s = \sqrt{sow}
+$$
+However, there is a limit to the minimal bucket size: it must be larger than the maximally sized parameter in the model. So the optimal batch size is 
+$$
+b_s = \max\{\sqrt{sow}, \text{maximal param size in model}\}
+$$
