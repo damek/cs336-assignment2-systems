@@ -111,6 +111,17 @@ T_{comm} = \frac{2\cdot(B/X)D/M_Y + 2\cdot2\cdot(D/M_X)(F/Y) + 2\cdot(B/X)D/M_Y}
 $$
 where the leading 2 comes from the fact that the weights are in FP16.
 
+### When are we compute bound?
+
+I.e., when is $T_{math} > T_{comm}$. This occurs when 
+$$
+\frac{2*2*BDF}{CXY} > \frac{2\cdot(B/X)D/M_Y + 2\cdot2\cdot(D/M_X)(F/Y) + 2\cdot(B/X)D/M_Y}{XW_{ici}}
+$$
+The only free parameter here is $B$. So let's solve for $B$. 
+We need 
+$$
+B\left(\frac{2*2*BDF}{CXY} - \frac{4D/XM_Y}{W_{ici}}\right) > \frac{2\cdot2\cdot(D/M_X)(F/Y)}{XW_{ici}}
+$$
 
 
 ## Question (d)
