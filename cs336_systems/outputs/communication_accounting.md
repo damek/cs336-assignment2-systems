@@ -110,7 +110,7 @@ $$
 On the other hand, the cost of an all gather / all reduce is $(\text{total bytes})/W_{ici}$. Thus, we have 
 
 $$
-T_{comm} = \frac{2\cdot(B/X)D/M_Y + 2\cdot2\cdot(D/M_X)(F/Y) + 2\cdot(B/X)D/M_Y}{W_{ici}}
+T_{comm} = \frac{2\cdot(B/X)D/M_Y + 2\cdot2\cdot(D/M_X)(F/Y) + 2\cdot(B/X)D/M_Y}{W_{ici}} = 4D\frac{B/(XM_Y) +F/(YM_X)}{W_{ici}} 
 $$
 
 where the leading 2 comes from the fact that the weights are in FP16.
