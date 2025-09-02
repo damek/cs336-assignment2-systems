@@ -120,14 +120,14 @@ where the leading 2 comes from the fact that the weights are in FP16.
 I.e., when is $T_{math} > T_{comm}$. This occurs when 
 
 $$
-\frac{4BDF}{CXY} > \frac{2\cdot(B/X)D/M_Y + 2\cdot2\cdot(D/M_X)(F/Y) + 2\cdot(B/X)D/M_Y}{W_{ici}}
+\frac{4BDF}{CXY} > 4D\frac{B/(XM_Y) +F/(YM_X)}{W_{ici}}
 $$
 
 The only free parameter here is $B$. So let's solve for $B$. 
 We need 
 
 $$
-B\left(\frac{4DF}{CXY} - \frac{4D/XM_Y}{W_{ici}}\right) > \frac{2\cdot2\cdot(D/M_X)(F/Y)}{XW_{ici}}
+B\left(\frac{F}{CXY} - \frac{1}{XM_YW_{ici}}\right) > \frac{F}{W_{ici}YM_X}
 $$
 
 
