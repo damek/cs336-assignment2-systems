@@ -102,23 +102,30 @@ What this means is we shard the data across $X$ GPUs. We also shard the weight m
 7. Reduce scatter $\text{Out}[B\_X, D]{U\_Y}$ along the $Y$ to get $\text{Out}[B\_X, D\_Y]$.
 
 We can calculate the total computation time as two matrix multiplies.
+
 $$
 T_{math} = \frac{2*2*BDF}{CXY}
 $$
+
 On the other hand, the cost of an all gather / all reduce is $(\text{total bytes})/W_{ici}$. Thus, we have 
+
 $$
 T_{comm} = \frac{2\cdot(B/X)D/M_Y + 2\cdot2\cdot(D/M_X)(F/Y) + 2\cdot(B/X)D/M_Y}{XW_{ici}}
 $$
+
 where the leading 2 comes from the fact that the weights are in FP16.
 
 ### When are we compute bound?
 
 I.e., when is $T_{math} > T_{comm}$. This occurs when 
+
 $$
 \frac{2*2*BDF}{CXY} > \frac{2\cdot(B/X)D/M_Y + 2\cdot2\cdot(D/M_X)(F/Y) + 2\cdot(B/X)D/M_Y}{XW_{ici}}
 $$
+
 The only free parameter here is $B$. So let's solve for $B$. 
 We need 
+
 $$
 B\left(\frac{2*2*BDF}{CXY} - \frac{4D/XM_Y}{W_{ici}}\right) > \frac{2\cdot2\cdot(D/M_X)(F/Y)}{XW_{ici}}
 $$
