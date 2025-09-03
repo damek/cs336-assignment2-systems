@@ -169,19 +169,19 @@ if __name__ == "__main__":
         "lr": 1e-3,
         "weight_decay": 0.01,
     }
-    
-    model_dict = {
-        "vocab_size": 10000,
-        "context_length": seq_len,
-        "d_model": 1600,
-        "num_layers": 48,
-        "num_heads": 25,
-        "d_ff": 6400,
-        "rope_theta": 10000,    
-    }
+
     for local_bs in local_bss:
         for seq_len in seq_lens:
-            for sharded in [True, False]:
+            for sharded in [True, False]:    
+                model_dict = {
+                    "vocab_size": 10000,
+                    "context_length": seq_len,
+                    "d_model": 1600,
+                    "num_layers": 48,
+                    "num_heads": 25,
+                    "d_ff": 6400,
+                    "rope_theta": 10000,    
+                }
                 print(f"Training DDP model, local_bs: {local_bs}, seq_len: {seq_len}, sharded: {sharded}")
                 try: 
                     mp.spawn(fn=train, args=(world_size, nb_iters, model_dict, optimizer_dict, local_bs,warmup, sharded), nprocs=world_size, join=True)
