@@ -78,6 +78,7 @@ def _test_sharded_optimizer(rank: int, world_size: int, model_class: Type[torch.
     # Check that the final model weights are the same regardless of if we're using
     # the sharded or non-sharded optimizer.
     for non_sharded_parameters, sharded_parameters in zip(non_sharded_model.parameters(), sharded_model.parameters()):
+        print("Distance between non-sharded and sharded parameters is: ", torch.norm(non_sharded_parameters - sharded_parameters))
         numpy.testing.assert_allclose(
             non_sharded_parameters.detach().cpu().numpy(),
             sharded_parameters.detach().cpu().numpy(),
