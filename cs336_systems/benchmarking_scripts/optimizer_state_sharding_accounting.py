@@ -62,7 +62,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         torch.cuda.manual_seed_all(0)
         np.random.seed(0)
         torch.cuda.reset_peak_memory_stats()
-        model, optimizer = create_model_and_optimizer(model_dict, optimizer_dict, device, state_sharding)
+        model, optimizer = create_model_and_optimizer(model_dict, optimizer_dict, device, False)
         model = DDPOverlapIndividualParameters(model) 
         mem_after_model_and_optimizer = torch.tensor(torch.cuda.max_memory_allocated())
         # dist.broadcast_object_list(model.state_dict(), src=0)
@@ -86,9 +86,6 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
 
         total_time_train = torch.zeros(1, device=device)
         total_time_grad_all_reduce = torch.zeros(1, device=device)
-        mem_before_zero_grads = torch.zeros(1, device=device)
-        mem_after_zero_grads = torch.zeros(1, device=device)
-        mem_after_backward = torch.zeros(1, device=device)
         mem_before_step = torch.zeros(1, device=device)
         mem_after_step = torch.zeros(1, device=device)
 
@@ -104,19 +101,9 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             dist.scatter(x_local, scatter_list=x_list, src=0)
             dist.scatter(y_local, scatter_list=y_list, src=0)
 
-            if iter >= nb_warmup:
-                mem_before_zero_grads += torch.cuda.max_memory_allocated()
-                # print("Memory before zeroing grads: ", torch.cuda.max_memory_allocated())
-            optimizer.zero_grad(set_to_none=True)
-            if iter >= nb_warmup:
-                mem_after_zero_grads += torch.cuda.max_memory_allocated()
-                # print("Memory after zeroing grads: ", torch.cuda.max_memory_allocated())
-
             logits = model(x_local)
             loss = nn_utils.cross_entropy(logits, y_local)
             loss.backward()
-            if iter >= nb_warmup:
-                mem_after_backward += torch.cuda.max_memory_allocated()
                 # print("Memory before grad all reduce: ", torch.cuda.max_memory_allocated())
             start_time_grad_all_reduce = time.perf_counter()
             model.finish_gradient_synchronization()
@@ -125,10 +112,11 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
             if iter >= nb_warmup:
                 total_time_grad_all_reduce += end_time_grad_all_reduce - start_time_grad_all_reduce
             if iter >= nb_warmup:
-                mem_before_step += torch.cuda.max_memory_allocated()
+                step_peak_alloc = torch.cuda.max_memory_allocated()
+                mem_before_step += torch.cuda.memory_allocated()
             optimizer.step()
             if iter >= nb_warmup:
-                mem_after_step += torch.cuda.max_memory_allocated()
+                mem_after_step += torch.cuda.memory_allocated()
             torch.cuda.synchronize()
             end_time_train = time.perf_counter()
             if iter >= nb_warmup:
@@ -137,18 +125,12 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         dist.all_reduce(total_time_train, op=dist.ReduceOp.MAX)
         dist.all_reduce(total_time_grad_all_reduce, op=dist.ReduceOp.MAX)
         dist.all_reduce(mem_after_model_and_optimizer, op=dist.ReduceOp.MAX)
-        dist.all_reduce(mem_before_zero_grads, op=dist.ReduceOp.MAX)
-        dist.all_reduce(mem_after_zero_grads, op=dist.ReduceOp.MAX)
-        dist.all_reduce(mem_after_backward, op=dist.ReduceOp.MAX)
         dist.all_reduce(mem_before_step, op=dist.ReduceOp.MAX)
         dist.all_reduce(mem_after_step, op=dist.ReduceOp.MAX)
 
         if rank == 0:
             print(f"total time train: {total_time_train/nb_iters}")
             print(f"Mem after model and optimizer creation: {mem_after_model_and_optimizer/1024^3} GB")
-            print(f"Mem before zeroing grads: {mem_before_zero_grads/nb_iters}")
-            print(f"Mem after zeroing grads: {mem_after_zero_grads/nb_iters/1024^3} GB")
-            print(f"Mem after backward: {mem_after_backward/nb_iters/1024^3} GB")
             print(f"Mem before step: {mem_before_step/nb_iters/1024^3} GB")
             print(f"Mem after step: {mem_after_step/nb_iters/1024^3} GB")
             # print(f"total time grad all reduce: {total_time_grad_all_reduce/nb_iters}")
