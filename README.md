@@ -55,6 +55,11 @@ https://x.com/damekdavis/status/1949507725626347825
   - Bucketed DDP Benchmarking on GPT2 XL model
     - Run code [ddp_bucketed_benchmarking.py](cs336_systems/benchmarking_scripts/ddp_bucketed_benchmarking.py)
     - Results: [ddp_bucketed_benchmarking.md](cs336_systems/outputs/ddp_bucketed_benchmarking.md)
+  - Communication Accounting
+    - View the calculations in [communication_accounting.md](cs336_systems/outputs/communication_accounting.md)
+  - Optimizer State Sharding Accounting
+    - run code [optimizer_state_sharding_accounting.py](cs336_systems/benchmarking_scripts/optimizer_state_sharding_accounting.py)
+    - Results: [optimizer_state_sharding_accounting.md](cs336_systems/outputs/optimizer_state_sharding_accounting.md)
 
 # Getting started with my code
 
