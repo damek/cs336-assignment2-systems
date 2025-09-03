@@ -65,7 +65,6 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         model, optimizer = create_model_and_optimizer(model_dict, optimizer_dict, device, False)
         model = DDPOverlapIndividualParameters(model) 
         mem_after_model_and_optimizer = torch.tensor(torch.cuda.max_memory_allocated(), device=device)
-        )
         # dist.broadcast_object_list(model.state_dict(), src=0)
         for p in model.parameters():
             dist.broadcast(p.data, src=0)
