@@ -145,12 +145,12 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
 
         if rank == 0:
             print(f"total time train: {total_time_train/nb_iters}")
-            print(f"Mem after model and optimizer creation: {mem_after_model_and_optimizer/nb_iters}")
+            print(f"Mem after model and optimizer creation: {mem_after_model_and_optimizer/1024^3} GB")
             print(f"Mem before zeroing grads: {mem_before_zero_grads/nb_iters}")
-            print(f"Mem after zeroing grads: {mem_after_zero_grads/nb_iters}")
-            print(f"Mem after backward: {mem_after_backward/nb_iters}")
-            print(f"Mem before step: {mem_before_step/nb_iters}")
-            print(f"Mem after step: {mem_after_step/nb_iters}")
+            print(f"Mem after zeroing grads: {mem_after_zero_grads/nb_iters/1024^3} GB")
+            print(f"Mem after backward: {mem_after_backward/nb_iters/1024^3} GB")
+            print(f"Mem before step: {mem_before_step/nb_iters/1024^3} GB")
+            print(f"Mem after step: {mem_after_step/nb_iters/1024^3} GB")
             # print(f"total time grad all reduce: {total_time_grad_all_reduce/nb_iters}")
             # print(f"ratio grad all reduce to train time: {total_time_grad_all_reduce/total_time_train}")
 
