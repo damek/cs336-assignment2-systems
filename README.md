@@ -1,6 +1,6 @@
 # Following along
 
-Currently writing a twitter thread here: 
+I completed this assignment! You can see my twitter thread while I wrote up the assignment here: 
 
 https://x.com/damekdavis/status/1949507725626347825
 
