@@ -62,7 +62,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
         torch.cuda.manual_seed_all(0)
         np.random.seed(0)
         torch.cuda.reset_peak_memory_stats()
-        model, optimizer = create_model_and_optimizer(model_dict, optimizer_dict, device, False)
+        model, optimizer = create_model_and_optimizer(model_dict, optimizer_dict, device, state_sharding)
         model = DDPOverlapIndividualParameters(model) 
         mem_after_model_and_optimizer = torch.tensor(torch.cuda.max_memory_allocated(), device=device)
         # dist.broadcast_object_list(model.state_dict(), src=0)
@@ -143,7 +143,7 @@ def train(rank, world_size, nb_iters, model_dict, optimizer_dict, local_bs, nb_w
 if __name__ == "__main__":
     world_size = 2
     nb_iters = 10
-    local_bss = [2, 4]
+    local_bss = [2]
     seq_lens = [128, 256, 512]
     warmup=10
     # XL model
