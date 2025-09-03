@@ -6,10 +6,10 @@ class OptimizerStateSharding(torch.optim.Optimizer):
     
     def __init__(self, params, optimizer_cls, **kwargs):
         self.optimizer = optimizer_cls([], **kwargs)
+        print("kwargs", kwargs)
+        print("**kwargs", **kwargs)
         self._all_params = []
         self._owner = {}
-        self.world_size = dist.get_world_size()
-        self.rank = dist.get_rank()
         self.counter = 0
         if dist.is_available() and dist.is_initialized():
             self.world_size = dist.get_world_size()
@@ -21,7 +21,7 @@ class OptimizerStateSharding(torch.optim.Optimizer):
 
     def step(self, closure, **kwargs):
         with torch.no_grad():
-            self.optimizer.step(closure, kwargs)
+            self.optimizer.step(closure, **kwargs)
             if self.world_size > 1 or not dist.is_initialized():
                 for p in self._all_params: 
                     dist.broadcast(p.data, src=self._owner[p])
