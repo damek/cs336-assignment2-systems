@@ -5,9 +5,9 @@ class OptimizerStateSharding(torch.optim.Optimizer):
 
     
     def __init__(self, params, optimizer_cls, **kwargs):
-        self.optimizer = optimizer_cls([], **kwargs)
-        print("kwargs", kwargs)
-        print("**kwargs", **kwargs)
+        self._opt_class = optimizer_cls
+        self.optimizer = None
+        self._defaults = kwargs.copy()
         self._all_params = []
         self._owner = {}
         self.counter = 0
@@ -17,7 +17,7 @@ class OptimizerStateSharding(torch.optim.Optimizer):
         else:
             self.world_size = 1
             self.rank = 0
-        super().__init__(params, kwargs.copy())
+        super().__init__(params, self._defaults.copy())
 
     def step(self, closure, **kwargs):
         with torch.no_grad():
@@ -39,4 +39,7 @@ class OptimizerStateSharding(torch.optim.Optimizer):
         if local_params:
             inner_group = {k : v for k, v in param_group.items() if k != "params"}
             inner_group["params"] = local_params
-            self.optimizer.add_param_group(inner_group)
+            if self.optimizer is None:
+                self.optimizer = self._opt_class(local_params, **self._defaults)
+            else: 
+                self.optimizer.add_param_group(inner_group)
