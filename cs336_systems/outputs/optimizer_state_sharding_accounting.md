@@ -59,7 +59,7 @@ Looking at the above results, the speed is slightly slower with sharding: ~1.1 s
 > How does our approach to optimizer state sharding differ from ZeRO stage 1 (described as ZeRO-1 DP $P_{os}$ in Rajbhandari et al., 2020)?
 > Deliverable: 2-3 sentence summary of any differences, especially those related to memory and communication volume.
 
-In Zero-1 P_{os}, the DP and state sharding communications are wrapped together and so there is no extra communication. 
+In Zero-1 $P_{os}$, the DP and state sharding communications are wrapped together and so there is no extra communication. 
 
 Why? Well at the end of DP, we do an All reduce, meaning we average the gradients across the ranks. We can split this into two pieces. Indeed, recall that an all reduce is a combination of (1) a reduce scatter followed by (2) an all gather. So we do two things: 
 1. We reduce scatter the gradients across the ranks. This gives each rank the shard of the gradient it needs to perform an optimizer step. So we take the step here. 
