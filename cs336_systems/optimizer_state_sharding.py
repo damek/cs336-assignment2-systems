@@ -5,7 +5,7 @@ class OptimizerStateSharding(torch.optim.Optimizer):
 
     
     def __init__(self, params, optimizer_cls, **kwargs):
-        self.optimizer = optimizer_cls([], kwargs)
+        self.optimizer = optimizer_cls([], **kwargs)
         self._all_params = []
         self._owner = {}
         self.world_size = dist.get_world_size()
